@@ -303,7 +303,8 @@ function BookPreview({ hit, onSaved }: { hit: BookHit; onSaved: () => void }) {
     });
     setSaving(false);
     if (error) {
-      toast.error(error.message);
+      console.error("Save book failed:", error);
+      toast.error("Couldn't save the book. Please try again.");
       return;
     }
     toast.success("Added to your library");
