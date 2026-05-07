@@ -39,7 +39,10 @@ function BookDetail() {
 
   const updateStatus = async (status: Status) => {
     const { error } = await supabase.from("books").update({ status }).eq("id", book.id);
-    if (error) return toast.error(error.message);
+    if (error) {
+      console.error("Update book status failed:", error);
+      return toast.error("Couldn't update the book. Please try again.");
+    }
     setBook({ ...book, status });
     toast.success("Updated");
   };
@@ -47,7 +50,10 @@ function BookDetail() {
   const remove = async () => {
     if (!confirm("Remove this book from your library?")) return;
     const { error } = await supabase.from("books").delete().eq("id", book.id);
-    if (error) return toast.error(error.message);
+    if (error) {
+      console.error("Delete book failed:", error);
+      return toast.error("Couldn't remove the book. Please try again.");
+    }
     toast.success("Removed");
     navigate({ to: "/" });
   };
