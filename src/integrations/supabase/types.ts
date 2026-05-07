@@ -53,6 +53,36 @@ export type Database = {
         }
         Relationships: []
       }
+      logs: {
+        Row: {
+          context: Json | null
+          created_at: string
+          id: string
+          level: Database["public"]["Enums"]["log_level"]
+          message: string
+          source: string | null
+          user_id: string | null
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["log_level"]
+          message: string
+          source?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          level?: Database["public"]["Enums"]["log_level"]
+          message?: string
+          source?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -62,6 +92,7 @@ export type Database = {
     }
     Enums: {
       book_status: "to_read" | "reading" | "finished"
+      log_level: "info" | "warn" | "error"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -190,6 +221,7 @@ export const Constants = {
   public: {
     Enums: {
       book_status: ["to_read", "reading", "finished"],
+      log_level: ["info", "warn", "error"],
     },
   },
 } as const
