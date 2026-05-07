@@ -12,13 +12,33 @@ const coverUrl = (id: number | string | null | undefined, size: "S" | "M" | "L" 
 const coverByIsbn = (isbn: string, size: "S" | "M" | "L" = "M") =>
   `https://covers.openlibrary.org/b/isbn/${isbn}-${size}.jpg`;
 
+async function lookupGoogleBooks(isbn: string): Promise<BookHit | null> {
+  try {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const v = j.items?.[0]?.volumeInfo;
+    if (!v) return null;
+    const img = v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || null;
+    return {
+      isbn,
+      title: v.title ?? "Untitled",
+      authors: v.authors ?? [],
+      cover_url: img ? img.replace(/^http:/, "https:") : coverByIsbn(isbn),
+      published_year: v.publishedDate ? parseInt(String(v.publishedDate).match(/\d{4}/)?.[0] ?? "") || null : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function lookupByIsbn(isbn: string): Promise<BookHit | null> {
   const clean = isbn.replace(/[^0-9Xx]/g, "");
   if (!clean) return null;
   const res = await fetch(`https://openlibrary.org/isbn/${clean}.json`);
   if (!res.ok) {
-    // fallback to search
-    return searchOne(clean);
+    // fallbacks: Google Books, then Open Library search
+    return (await lookupGoogleBooks(clean)) ?? searchOne(clean);
   }
   const data = await res.json();
   const authors: string[] = [];
