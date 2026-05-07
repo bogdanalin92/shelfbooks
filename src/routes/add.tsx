@@ -44,6 +44,7 @@ function ScanTab() {
   const [error, setError] = useState<string | null>(null);
   const [hit, setHit] = useState<BookHit | null>(null);
   const [loading, setLoading] = useState(false);
+  const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
 
   const stop = () => {
@@ -55,6 +56,7 @@ function ScanTab() {
   const start = async () => {
     setError(null);
     setHit(null);
+    setNotFoundIsbn(null);
     setScanning(true);
     try {
       const hints = new Map();
@@ -75,7 +77,7 @@ function ScanTab() {
           try {
             const book = await lookupByIsbn(text);
             if (!book) {
-              setError(`No book found for ISBN ${text}`);
+              setNotFoundIsbn(text);
             } else {
               setHit(book);
             }
@@ -119,6 +121,9 @@ function ScanTab() {
       </Card>
       {loading && <p className="text-center text-sm text-muted-foreground"><Loader2 className="inline h-4 w-4 animate-spin mr-1"/>Looking up…</p>}
       {error && <p className="text-center text-sm text-destructive">{error}</p>}
+      {notFoundIsbn && !hit && (
+        <ManualEntry isbn={notFoundIsbn} onCancel={() => setNotFoundIsbn(null)} onPicked={(h) => { setHit(h); setNotFoundIsbn(null); }} />
+      )}
       {hit && <BookPreview hit={hit} onSaved={() => setHit(null)} />}
     </div>
   );
@@ -190,16 +195,16 @@ function ManualTab() {
   const [isbn, setIsbn] = useState("");
   const [hit, setHit] = useState<BookHit | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState<string | null>(null);
 
   const onLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    setError(null);
+    setNotFound(null);
     setHit(null);
     try {
       const b = await lookupByIsbn(isbn);
-      if (!b) setError("No book found for that ISBN.");
+      if (!b) setNotFound(isbn.replace(/[^0-9Xx]/g, ""));
       else setHit(b);
     } finally {
       setBusy(false);
@@ -223,9 +228,60 @@ function ManualTab() {
           </Button>
         </div>
       </form>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {notFound && !hit && (
+        <ManualEntry isbn={notFound} onCancel={() => setNotFound(null)} onPicked={(h) => { setHit(h); setNotFound(null); }} />
+      )}
       {hit && <BookPreview hit={hit} onSaved={() => setHit(null)} />}
     </div>
+  );
+}
+
+function ManualEntry({ isbn, onPicked, onCancel }: { isbn: string; onPicked: (h: BookHit) => void; onCancel: () => void }) {
+  const [title, setTitle] = useState("");
+  const [authors, setAuthors] = useState("");
+  const [year, setYear] = useState("");
+  const [coverUrl, setCoverUrl] = useState("");
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onPicked({
+      isbn: isbn || null,
+      title: title.trim(),
+      authors: authors.split(",").map((s) => s.trim()).filter(Boolean),
+      cover_url: coverUrl.trim() || null,
+      published_year: year ? parseInt(year) || null : null,
+    });
+  };
+
+  return (
+    <Card className="p-3 space-y-2">
+      <p className="text-sm">
+        No book found for ISBN <span className="font-mono">{isbn}</span>. Enter details manually:
+      </p>
+      <form onSubmit={submit} className="space-y-2">
+        <div>
+          <Label htmlFor="m-title">Title *</Label>
+          <Input id="m-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        </div>
+        <div>
+          <Label htmlFor="m-authors">Authors (comma-separated)</Label>
+          <Input id="m-authors" value={authors} onChange={(e) => setAuthors(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="m-year">Published year</Label>
+          <Input id="m-year" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="m-cover">Cover image URL (optional)</Label>
+          <Input id="m-cover" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
+        </div>
+        <div className="flex gap-2">
+          <Button type="submit" size="sm">Continue</Button>
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+        </div>
+      </form>
+    </Card>
   );
 }
 
