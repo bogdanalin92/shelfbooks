@@ -43,7 +43,11 @@ function LoginPage() {
         if (error) throw error;
       }
     } catch (err: any) {
-      toast.error(err.message ?? "Auth failed");
+      console.error("Auth failed:", err);
+      const msg = typeof err?.message === "string" && /invalid|password|email|credentials|confirm/i.test(err.message)
+        ? "Invalid email or password."
+        : "Sign-in failed. Please try again.";
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
