@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { Trash2, ArrowLeft } from "lucide-react";
+import { logError } from "@/lib/logger";
 
 export const Route = createFileRoute("/book/$id")({
   component: () => (
