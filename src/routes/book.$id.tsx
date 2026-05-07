@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { Trash2, ArrowLeft } from "lucide-react";
+import { logError } from "@/lib/logger";
 
 export const Route = createFileRoute("/book/$id")({
   component: () => (
@@ -40,7 +41,7 @@ function BookDetail() {
   const updateStatus = async (status: Status) => {
     const { error } = await supabase.from("books").update({ status }).eq("id", book.id);
     if (error) {
-      console.error("Update book status failed:", error);
+      logError("book.updateStatus", error.message, error);
       return toast.error("Couldn't update the book. Please try again.");
     }
     setBook({ ...book, status });
@@ -51,7 +52,7 @@ function BookDetail() {
     if (!confirm("Remove this book from your library?")) return;
     const { error } = await supabase.from("books").delete().eq("id", book.id);
     if (error) {
-      console.error("Delete book failed:", error);
+      logError("book.remove", error.message, error);
       return toast.error("Couldn't remove the book. Please try again.");
     }
     toast.success("Removed");

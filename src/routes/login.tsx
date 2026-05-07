@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { BookOpen } from "lucide-react";
+import { logError } from "@/lib/logger";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -43,7 +44,7 @@ function LoginPage() {
         if (error) throw error;
       }
     } catch (err: any) {
-      console.error("Auth failed:", err);
+      logError("login.auth", err?.message ?? "auth failed", err);
       const msg = typeof err?.message === "string" && /invalid|password|email|credentials|confirm/i.test(err.message)
         ? "Invalid email or password."
         : "Sign-in failed. Please try again.";

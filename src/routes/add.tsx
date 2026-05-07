@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { lookupByIsbn, searchBooks, type BookHit } from "@/lib/openlibrary";
+import { logError } from "@/lib/logger";
 import { toast } from "sonner";
 import { Camera, Loader2, Search, ScanLine } from "lucide-react";
 
@@ -303,7 +304,7 @@ function BookPreview({ hit, onSaved }: { hit: BookHit; onSaved: () => void }) {
     });
     setSaving(false);
     if (error) {
-      console.error("Save book failed:", error);
+      logError("add.saveBook", error.message, error);
       toast.error("Couldn't save the book. Please try again.");
       return;
     }
