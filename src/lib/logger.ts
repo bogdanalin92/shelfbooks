@@ -10,8 +10,9 @@ export async function logEvent(
 ) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return; // only signed-in users can write logs
     await supabase.from("logs").insert({
-      user_id: user?.id ?? null,
+      user_id: user.id,
       level,
       source,
       message: message.slice(0, 2000),
