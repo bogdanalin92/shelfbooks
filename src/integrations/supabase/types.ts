@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      books: {
+        Row: {
+          authors: string[]
+          cover_url: string | null
+          created_at: string
+          id: string
+          isbn: string | null
+          published_year: number | null
+          status: Database["public"]["Enums"]["book_status"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          authors?: string[]
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          isbn?: string | null
+          published_year?: number | null
+          status?: Database["public"]["Enums"]["book_status"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          authors?: string[]
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          isbn?: string | null
+          published_year?: number | null
+          status?: Database["public"]["Enums"]["book_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +61,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      book_status: "to_read" | "reading" | "finished"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +188,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      book_status: ["to_read", "reading", "finished"],
+    },
   },
 } as const
