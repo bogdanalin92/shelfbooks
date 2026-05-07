@@ -61,7 +61,7 @@ export type Database = {
           level: Database["public"]["Enums"]["log_level"]
           message: string
           source: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           context?: Json | null
@@ -70,7 +70,7 @@ export type Database = {
           level?: Database["public"]["Enums"]["log_level"]
           message: string
           source?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           context?: Json | null
@@ -79,7 +79,7 @@ export type Database = {
           level?: Database["public"]["Enums"]["log_level"]
           message?: string
           source?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
