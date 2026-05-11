@@ -27,7 +27,9 @@ const MIME: Record<string, string> = {
 
 async function serveStatic(pathname: string): Promise<Response | null> {
   // /_build/* maps directly to dist/client/*  (Vite client base)
-  let relativePath = pathname.startsWith("/_build/") ? pathname.slice("/_build".length) : pathname;
+  const relativePath = pathname.startsWith("/_build/")
+    ? pathname.slice("/_build".length)
+    : pathname;
 
   try {
     const filePath = join(CLIENT_DIR, relativePath);

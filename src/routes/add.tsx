@@ -115,8 +115,8 @@ function ScanTab() {
         },
       );
       controlsRef.current = controls;
-    } catch (e: any) {
-      setError(e?.message ?? "Camera unavailable");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Camera unavailable");
       setScanning(false);
     }
   };
@@ -302,11 +302,10 @@ function GoodreadsTab() {
     try {
       const book = await fetchGoodreadsBook({ data: url.trim() });
       setHit(book);
-    } catch (err: any) {
-      logError("goodreads.import", err?.message, err);
-      setError(
-        err?.message ?? "Could not import book. Make sure the URL is a Goodreads book page.",
-      );
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      logError("goodreads.import", message, err);
+      setError(message ?? "Could not import book. Make sure the URL is a Goodreads book page.");
     } finally {
       setBusy(false);
     }

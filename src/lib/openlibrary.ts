@@ -6,6 +6,28 @@ export type BookHit = {
   published_year: number | null;
 };
 
+interface GoogleBooksItem {
+  volumeInfo: {
+    title?: string;
+    authors?: string[];
+    publishedDate?: string;
+    imageLinks?: { thumbnail?: string; smallThumbnail?: string };
+    industryIdentifiers?: Array<{ type: string; identifier: string }>;
+  };
+}
+
+interface GoogleBooksResponse {
+  items?: GoogleBooksItem[];
+}
+
+interface OpenLibraryDoc {
+  isbn?: string[];
+  title?: string;
+  author_name?: string[];
+  cover_i?: number;
+  first_publish_year?: number;
+}
+
 const coverUrl = (id: number | string | null | undefined, size: "S" | "M" | "L" = "M") =>
   id ? `https://covers.openlibrary.org/b/id/${id}-${size}.jpg` : null;
 
@@ -16,7 +38,7 @@ async function lookupGoogleBooks(isbn: string): Promise<BookHit | null> {
   try {
     const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
     if (!r.ok) return null;
-    const j = await r.json();
+    const j: GoogleBooksResponse = await r.json();
     const v = j.items?.[0]?.volumeInfo;
     if (!v) return null;
     const img = v.imageLinks?.thumbnail || v.imageLinks?.smallThumbnail || null;
@@ -53,7 +75,9 @@ export async function lookupByIsbn(isbn: string): Promise<BookHit | null> {
             const aj = await ar.json();
             if (aj.name) authors.push(aj.name);
           }
-        } catch {}
+        } catch {
+          // noop — author fetch failures are silently skipped
+        }
       }
     }
   }
@@ -90,12 +114,12 @@ async function searchGoogleBooks(q: string, limit = 20): Promise<BookHit[]> {
       `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${limit}&printType=books`,
     );
     if (!r.ok) return [];
-    const j = await r.json();
-    return (j.items ?? []).map((item: any) => {
+    const j: GoogleBooksResponse = await r.json();
+    return (j.items ?? []).map((item: GoogleBooksItem) => {
       const v = item.volumeInfo;
       const isbn =
-        v.industryIdentifiers?.find((x: any) => x.type === "ISBN_13")?.identifier ??
-        v.industryIdentifiers?.find((x: any) => x.type === "ISBN_10")?.identifier ??
+        v.industryIdentifiers?.find((x) => x.type === "ISBN_13")?.identifier ??
+        v.industryIdentifiers?.find((x) => x.type === "ISBN_10")?.identifier ??
         null;
       const img = v.imageLinks?.thumbnail ?? v.imageLinks?.smallThumbnail ?? null;
       return {
@@ -121,7 +145,7 @@ export async function searchBooks(q: string, limit = 20): Promise<BookHit[]> {
       .then((r) => (r.ok ? r.json() : { docs: [] }))
       .then((j) =>
         (j.docs ?? []).map(
-          (d: any) =>
+          (d: OpenLibraryDoc) =>
             ({
               isbn: d.isbn?.[0] ?? null,
               title: d.title,

@@ -13,7 +13,7 @@ export async function logEvent(level: Level, source: string, message: string, co
       level,
       source,
       message: message.slice(0, 2000),
-      context: context ? (JSON.parse(JSON.stringify(context)) as any) : null,
+      context: context ? (JSON.parse(JSON.stringify(context)) as unknown) : null,
     });
   } catch {
     // swallow — never surface logger errors

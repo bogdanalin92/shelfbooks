@@ -42,13 +42,12 @@ function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-    } catch (err: any) {
-      logError("login.auth", err?.message ?? "auth failed", err);
-      const msg =
-        typeof err?.message === "string" &&
-        /invalid|password|email|credentials|confirm/i.test(err.message)
-          ? "Invalid email or password."
-          : "Sign-in failed. Please try again.";
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "auth failed";
+      logError("login.auth", message, err);
+      const msg = /invalid|password|email|credentials|confirm/i.test(message)
+        ? "Invalid email or password."
+        : "Sign-in failed. Please try again.";
       toast.error(msg);
     } finally {
       setBusy(false);

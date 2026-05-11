@@ -12,7 +12,7 @@ function extractMeta(html: string, property: string): string | null {
   return m ? m[1] : null;
 }
 
-function extractLdJson(html: string): Record<string, any> | null {
+function extractLdJson(html: string): Record<string, unknown> | null {
   const matches = [
     ...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi),
   ];
@@ -22,7 +22,9 @@ function extractLdJson(html: string): Record<string, any> | null {
       const items = Array.isArray(data) ? data : [data];
       const book = items.find((x) => x["@type"] === "Book" || x["@type"]?.includes?.("Book"));
       if (book) return book;
-    } catch {}
+    } catch {
+      // noop — malformed JSON-LD blocks are silently skipped
+    }
   }
   return null;
 }
@@ -60,10 +62,18 @@ export const fetchGoodreadsBook = createServerFn({ method: "GET" })
     // 1. Try JSON-LD structured data (most reliable)
     const ld = extractLdJson(html);
     if (ld) {
-      const authors = ld.author
-        ? Array.isArray(ld.author)
-          ? ld.author.map((a: any) => a.name ?? a).filter(Boolean)
-          : [ld.author.name ?? ld.author].filter(Boolean)
+      type LdAuthorEntry = { name?: string } | string;
+      const rawAuthor = ld.author as LdAuthorEntry | LdAuthorEntry[] | null | undefined;
+      const authors: string[] = rawAuthor
+        ? Array.isArray(rawAuthor)
+          ? rawAuthor
+              .map((a) => (typeof a === "object" && a !== null ? (a.name ?? "") : a))
+              .filter(Boolean)
+          : [
+              typeof rawAuthor === "object" && rawAuthor !== null
+                ? (rawAuthor.name ?? "")
+                : rawAuthor,
+            ].filter(Boolean)
         : [];
       const isbn = ld.isbn ?? extractIsbn(html) ?? null;
       const cover = ld.image ?? extractMeta(html, "og:image") ?? null;
