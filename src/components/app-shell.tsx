@@ -24,7 +24,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
+      <header
+        className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <BookOpen className="h-5 w-5 text-primary" />
