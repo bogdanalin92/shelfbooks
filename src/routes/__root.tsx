@@ -77,8 +77,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#0f172a" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Books" },
-      { title: "My Book Library" },
+      { name: "apple-mobile-web-app-title", content: "ShelfBooks" },
+      { title: "ShelfBooks" },
       { name: "description", content: "Track the physical books you own" },
     ],
     links: [

@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2 font-semibold">
             <BookOpen className="h-5 w-5 text-primary" />
-            <span>My Library</span>
+            <span>ShelfBooks</span>
           </Link>
           <div className="flex items-center gap-1">
             {path !== "/add" && (

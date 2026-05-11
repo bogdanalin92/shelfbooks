@@ -12,9 +12,10 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { lookupByIsbn, searchBooks, type BookHit } from "@/lib/openlibrary";
+import { fetchGoodreadsBook } from "@/lib/goodreads";
 import { logError } from "@/lib/logger";
 import { toast } from "sonner";
-import { Camera, Loader2, Search, ScanLine } from "lucide-react";
+import { Camera, Loader2, Search, ScanLine, BookMarked } from "lucide-react";
 
 export const Route = createFileRoute("/add")({
   component: () => (
@@ -27,13 +28,15 @@ export const Route = createFileRoute("/add")({
 function AddBook() {
   return (
     <Tabs defaultValue="scan" className="space-y-4">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="scan"><ScanLine className="h-4 w-4 mr-1"/>Scan</TabsTrigger>
         <TabsTrigger value="search"><Search className="h-4 w-4 mr-1"/>Search</TabsTrigger>
+        <TabsTrigger value="goodreads"><BookMarked className="h-4 w-4 mr-1"/>Goodreads</TabsTrigger>
         <TabsTrigger value="manual">ISBN</TabsTrigger>
       </TabsList>
       <TabsContent value="scan"><ScanTab /></TabsContent>
       <TabsContent value="search"><SearchTab /></TabsContent>
+      <TabsContent value="goodreads"><GoodreadsTab /></TabsContent>
       <TabsContent value="manual"><ManualTab /></TabsContent>
     </Tabs>
   );
@@ -66,9 +69,16 @@ function ScanTab() {
         BarcodeFormat.EAN_8,
         BarcodeFormat.UPC_A,
       ]);
+      hints.set(DecodeHintType.TRY_HARDER, true);
       const reader = new BrowserMultiFormatReader(hints);
-      const controls = await reader.decodeFromVideoDevice(
-        undefined,
+      const controls = await reader.decodeFromConstraints(
+        {
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+        },
         videoRef.current!,
         async (result) => {
           if (!result) return;
@@ -106,6 +116,13 @@ function ScanTab() {
               Camera off
             </div>
           )}
+          {scanning && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-4/5 h-16 border-2 border-primary rounded opacity-80">
+                <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-primary/60" />
+              </div>
+            </div>
+          )}
         </div>
         {!scanning ? (
           <Button onClick={start} className="w-full">
@@ -134,19 +151,37 @@ function SearchTab() {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<BookHit[]>([]);
   const [busy, setBusy] = useState(false);
+  const [searched, setSearched] = useState(false);
   const [picked, setPicked] = useState<BookHit | null>(null);
+  const [addingManually, setAddingManually] = useState(false);
 
   const onSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!q.trim()) return;
     setBusy(true);
     setPicked(null);
+    setAddingManually(false);
     try {
-      setResults(await searchBooks(q));
+      const hits = await searchBooks(q);
+      setResults(hits);
+      setSearched(true);
     } finally {
       setBusy(false);
     }
   };
+
+  if (addingManually) {
+    return (
+      <div className="space-y-3">
+        <Button variant="ghost" size="sm" onClick={() => setAddingManually(false)}>← Back to search</Button>
+        <ManualEntry
+          isbn=""
+          onCancel={() => setAddingManually(false)}
+          onPicked={(h) => { setPicked(h); setAddingManually(false); }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -164,30 +199,92 @@ function SearchTab() {
       {picked ? (
         <BookPreview hit={picked} onSaved={() => setPicked(null)} />
       ) : (
-        <ul className="space-y-2">
-          {results.map((r, i) => (
-            <li key={i}>
-              <button
-                onClick={() => setPicked(r)}
-                className="flex w-full gap-3 text-left rounded-md border p-2 hover:bg-accent"
-              >
-                <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded bg-muted">
-                  {r.cover_url && (
-                    <img src={r.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-medium line-clamp-2 text-sm">{r.title}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{r.authors.join(", ")}</p>
-                  {r.published_year && (
-                    <p className="text-xs text-muted-foreground">{r.published_year}</p>
-                  )}
-                </div>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          {searched && results.length === 0 && !busy && (
+            <div className="text-center space-y-3 py-6">
+              <p className="text-sm text-muted-foreground">No results found for "<strong>{q}</strong>".</p>
+              <Button variant="outline" onClick={() => setAddingManually(true)}>
+                Add manually
+              </Button>
+            </div>
+          )}
+          <ul className="space-y-2">
+            {results.map((r, i) => (
+              <li key={i}>
+                <button
+                  onClick={() => setPicked(r)}
+                  className="flex w-full gap-3 text-left rounded-md border p-2 hover:bg-accent"
+                >
+                  <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded bg-muted">
+                    {r.cover_url && (
+                      <img src={r.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium line-clamp-2 text-sm">{r.title}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{r.authors.join(", ")}</p>
+                    {r.published_year && (
+                      <p className="text-xs text-muted-foreground">{r.published_year}</p>
+                    )}
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {searched && results.length > 0 && (
+            <div className="text-center pt-2">
+              <Button variant="ghost" size="sm" onClick={() => setAddingManually(true)}>
+                Not what you're looking for? Add manually
+              </Button>
+            </div>
+          )}
+        </>
       )}
+    </div>
+  );
+}
+
+function GoodreadsTab() {
+  const [url, setUrl] = useState("");
+  const [hit, setHit] = useState<BookHit | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+    setBusy(true);
+    setError(null);
+    setHit(null);
+    try {
+      const book = await fetchGoodreadsBook({ data: url.trim() });
+      setHit(book);
+    } catch (err: any) {
+      logError("goodreads.import", err?.message, err);
+      setError(err?.message ?? "Could not import book. Make sure the URL is a Goodreads book page.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Paste a Goodreads book URL to import its details automatically.
+      </p>
+      <form onSubmit={onImport} className="space-y-2">
+        <Input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://www.goodreads.com/book/show/…"
+          type="url"
+        />
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <><Loader2 className="h-4 w-4 animate-spin mr-1"/>Importing…</> : "Import from Goodreads"}
+        </Button>
+      </form>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      {hit && <BookPreview hit={hit} onSaved={() => { setHit(null); setUrl(""); }} />}
     </div>
   );
 }
@@ -257,9 +354,11 @@ function ManualEntry({ isbn, onPicked, onCancel }: { isbn: string; onPicked: (h:
 
   return (
     <Card className="p-3 space-y-2">
-      <p className="text-sm">
-        No book found for ISBN <span className="font-mono">{isbn}</span>. Enter details manually:
-      </p>
+      {isbn && (
+        <p className="text-sm">
+          No book found for ISBN <span className="font-mono">{isbn}</span>. Enter details manually:
+        </p>
+      )}
       <form onSubmit={submit} className="space-y-2">
         <div>
           <Label htmlFor="m-title">Title *</Label>

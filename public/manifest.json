@@ -1,6 +1,6 @@
 {
-  "name": "My Book Library",
-  "short_name": "Books",
+  "name": "ShelfBooks",
+  "short_name": "ShelfBooks",
   "description": "Track the physical books you own",
   "start_url": "/",
   "scope": "/",
