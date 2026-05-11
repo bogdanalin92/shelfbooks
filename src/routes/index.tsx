@@ -93,11 +93,7 @@ function Library() {
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {filtered.map((b) => (
             <li key={b.id}>
-              <Link
-                to="/book/$id"
-                params={{ id: b.id }}
-                className="block group"
-              >
+              <Link to="/book/$id" params={{ id: b.id }} className="block group">
                 <div className="aspect-[2/3] overflow-hidden rounded-md bg-muted">
                   {b.cover_url ? (
                     <img
@@ -115,9 +111,7 @@ function Library() {
                 <div className="mt-2 space-y-0.5">
                   <p className="text-sm font-medium line-clamp-2">{b.title}</p>
                   {b.authors[0] && (
-                    <p className="text-xs text-muted-foreground line-clamp-1">
-                      {b.authors[0]}
-                    </p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{b.authors[0]}</p>
                   )}
                   <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     {STATUS_LABEL[b.status]}

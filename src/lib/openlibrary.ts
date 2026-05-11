@@ -25,7 +25,9 @@ async function lookupGoogleBooks(isbn: string): Promise<BookHit | null> {
       title: v.title ?? "Untitled",
       authors: v.authors ?? [],
       cover_url: img ? img.replace(/^http:/, "https:") : coverByIsbn(isbn),
-      published_year: v.publishedDate ? parseInt(String(v.publishedDate).match(/\d{4}/)?.[0] ?? "") || null : null,
+      published_year: v.publishedDate
+        ? parseInt(String(v.publishedDate).match(/\d{4}/)?.[0] ?? "") || null
+        : null,
     };
   } catch {
     return null;
@@ -61,7 +63,9 @@ export async function lookupByIsbn(isbn: string): Promise<BookHit | null> {
     title: data.title ?? "Untitled",
     authors,
     cover_url: coverUrl(coverId) ?? coverByIsbn(clean),
-    published_year: data.publish_date ? parseInt(String(data.publish_date).match(/\d{4}/)?.[0] ?? "") || null : null,
+    published_year: data.publish_date
+      ? parseInt(String(data.publish_date).match(/\d{4}/)?.[0] ?? "") || null
+      : null,
   };
 }
 
@@ -83,22 +87,25 @@ async function searchOne(q: string): Promise<BookHit | null> {
 async function searchGoogleBooks(q: string, limit = 20): Promise<BookHit[]> {
   try {
     const r = await fetch(
-      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${limit}&printType=books`
+      `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${limit}&printType=books`,
     );
     if (!r.ok) return [];
     const j = await r.json();
     return (j.items ?? []).map((item: any) => {
       const v = item.volumeInfo;
-      const isbn = v.industryIdentifiers?.find((x: any) => x.type === "ISBN_13")?.identifier
-        ?? v.industryIdentifiers?.find((x: any) => x.type === "ISBN_10")?.identifier
-        ?? null;
+      const isbn =
+        v.industryIdentifiers?.find((x: any) => x.type === "ISBN_13")?.identifier ??
+        v.industryIdentifiers?.find((x: any) => x.type === "ISBN_10")?.identifier ??
+        null;
       const img = v.imageLinks?.thumbnail ?? v.imageLinks?.smallThumbnail ?? null;
       return {
         isbn,
         title: v.title ?? "Untitled",
         authors: v.authors ?? [],
         cover_url: img ? img.replace(/^http:/, "https:") : isbn ? coverByIsbn(isbn) : null,
-        published_year: v.publishedDate ? parseInt(String(v.publishedDate).match(/\d{4}/)?.[0] ?? "") || null : null,
+        published_year: v.publishedDate
+          ? parseInt(String(v.publishedDate).match(/\d{4}/)?.[0] ?? "") || null
+          : null,
       } as BookHit;
     });
   } catch {
@@ -111,14 +118,23 @@ export async function searchBooks(q: string, limit = 20): Promise<BookHit[]> {
 
   const [olResults, gbResults] = await Promise.all([
     fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=${limit}`)
-      .then(r => r.ok ? r.json() : { docs: [] })
-      .then(j => (j.docs ?? []).map((d: any) => ({
-        isbn: d.isbn?.[0] ?? null,
-        title: d.title,
-        authors: d.author_name ?? [],
-        cover_url: d.cover_i ? coverUrl(d.cover_i) : d.isbn?.[0] ? coverByIsbn(d.isbn[0]) : null,
-        published_year: d.first_publish_year ?? null,
-      } as BookHit)))
+      .then((r) => (r.ok ? r.json() : { docs: [] }))
+      .then((j) =>
+        (j.docs ?? []).map(
+          (d: any) =>
+            ({
+              isbn: d.isbn?.[0] ?? null,
+              title: d.title,
+              authors: d.author_name ?? [],
+              cover_url: d.cover_i
+                ? coverUrl(d.cover_i)
+                : d.isbn?.[0]
+                  ? coverByIsbn(d.isbn[0])
+                  : null,
+              published_year: d.first_publish_year ?? null,
+            }) as BookHit,
+        ),
+      )
       .catch(() => [] as BookHit[]),
     searchGoogleBooks(q, limit),
   ]);

@@ -13,23 +13,21 @@ import { renderErrorPage } from "./lib/error-page";
 const CLIENT_DIR = join(fileURLToPath(import.meta.url), "../../client");
 
 const MIME: Record<string, string> = {
-  ".js":    "application/javascript; charset=utf-8",
-  ".mjs":   "application/javascript; charset=utf-8",
-  ".css":   "text/css; charset=utf-8",
-  ".html":  "text/html; charset=utf-8",
-  ".json":  "application/json",
-  ".png":   "image/png",
-  ".svg":   "image/svg+xml",
-  ".ico":   "image/x-icon",
-  ".woff":  "font/woff",
+  ".js": "application/javascript; charset=utf-8",
+  ".mjs": "application/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".json": "application/json",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
   ".woff2": "font/woff2",
 };
 
 async function serveStatic(pathname: string): Promise<Response | null> {
   // /_build/* maps directly to dist/client/*  (Vite client base)
-  let relativePath = pathname.startsWith("/_build/")
-    ? pathname.slice("/_build".length)
-    : pathname;
+  let relativePath = pathname.startsWith("/_build/") ? pathname.slice("/_build".length) : pathname;
 
   try {
     const filePath = join(CLIENT_DIR, relativePath);
@@ -40,9 +38,7 @@ async function serveStatic(pathname: string): Promise<Response | null> {
     const contentType = MIME[ext] ?? "application/octet-stream";
     // Hashed assets get long-lived cache; public files get short cache
     const isHashed = pathname.startsWith("/_build/");
-    const cacheControl = isHashed
-      ? "public, max-age=31536000, immutable"
-      : "public, max-age=3600";
+    const cacheControl = isHashed ? "public, max-age=31536000, immutable" : "public, max-age=3600";
     return new Response(data, {
       headers: { "content-type": contentType, "cache-control": cacheControl },
     });
@@ -62,7 +58,7 @@ let serverEntryPromise: Promise<ServerEntry> | undefined;
 async function getServerEntry(): Promise<ServerEntry> {
   if (!serverEntryPromise) {
     serverEntryPromise = import("@tanstack/react-start/server-entry").then(
-      (m) => ((m as { default?: ServerEntry }).default ?? (m as unknown as ServerEntry)),
+      (m) => (m as { default?: ServerEntry }).default ?? (m as unknown as ServerEntry),
     );
   }
   return serverEntryPromise;
@@ -77,7 +73,11 @@ function brandedErrorResponse(): Response {
 
 function isCatastrophicSsrErrorBody(body: string, responseStatus: number): boolean {
   let payload: unknown;
-  try { payload = JSON.parse(body); } catch { return false; }
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    return false;
+  }
   if (!payload || Array.isArray(payload) || typeof payload !== "object") return false;
   const fields = payload as Record<string, unknown>;
   const expectedKeys = new Set(["message", "status", "unhandled"]);

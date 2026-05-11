@@ -6,8 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { Trash2, ArrowLeft, Pencil, Loader2 } from "lucide-react";
@@ -39,7 +51,8 @@ function BookDetail() {
       .then(({ data }) => setBook(data));
   }, [id]);
 
-  if (book === undefined) return <p className="text-center text-muted-foreground py-12">Loading…</p>;
+  if (book === undefined)
+    return <p className="text-center text-muted-foreground py-12">Loading…</p>;
   if (!book) return <p className="text-center text-muted-foreground py-12">Book not found.</p>;
 
   const updateStatus = async (status: Status) => {
@@ -93,7 +106,9 @@ function BookDetail() {
       <Card className="p-4 space-y-2">
         <p className="text-sm font-medium">Reading status</p>
         <Select value={book.status} onValueChange={(v) => updateStatus(v as Status)}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="to_read">To read</SelectItem>
             <SelectItem value="reading">Reading</SelectItem>
@@ -110,7 +125,10 @@ function BookDetail() {
         book={book}
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        onSaved={(updated) => { setBook(updated); setEditOpen(false); }}
+        onSaved={(updated) => {
+          setBook(updated);
+          setEditOpen(false);
+        }}
       />
     </div>
   );
@@ -151,7 +169,10 @@ function EditModal({
     setSaving(true);
     const updates = {
       title: title.trim(),
-      authors: authors.split(",").map((s) => s.trim()).filter(Boolean),
+      authors: authors
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
       isbn: isbn.trim() || null,
       published_year: year ? parseInt(year) || null : null,
       cover_url: coverUrl.trim() || null,
@@ -185,27 +206,52 @@ function EditModal({
             <Input id="e-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="e-authors">Authors <span className="text-muted-foreground text-xs">(comma-separated)</span></Label>
-            <Input id="e-authors" value={authors} onChange={(e) => setAuthors(e.target.value)} placeholder="Author One, Author Two" />
+            <Label htmlFor="e-authors">
+              Authors <span className="text-muted-foreground text-xs">(comma-separated)</span>
+            </Label>
+            <Input
+              id="e-authors"
+              value={authors}
+              onChange={(e) => setAuthors(e.target.value)}
+              placeholder="Author One, Author Two"
+            />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label htmlFor="e-isbn">ISBN</Label>
-              <Input id="e-isbn" value={isbn} onChange={(e) => setIsbn(e.target.value)} placeholder="9780000000000" />
+              <Input
+                id="e-isbn"
+                value={isbn}
+                onChange={(e) => setIsbn(e.target.value)}
+                placeholder="9780000000000"
+              />
             </div>
             <div className="space-y-1">
               <Label htmlFor="e-year">Year</Label>
-              <Input id="e-year" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} placeholder="2024" />
+              <Input
+                id="e-year"
+                inputMode="numeric"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                placeholder="2024"
+              />
             </div>
           </div>
           <div className="space-y-1">
             <Label htmlFor="e-cover">Cover URL</Label>
-            <Input id="e-cover" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
+            <Input
+              id="e-cover"
+              value={coverUrl}
+              onChange={(e) => setCoverUrl(e.target.value)}
+              placeholder="https://…"
+            />
           </div>
           <div className="space-y-1">
             <Label>Reading status</Label>
             <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="to_read">To read</SelectItem>
                 <SelectItem value="reading">Reading</SelectItem>
@@ -215,13 +261,27 @@ function EditModal({
           </div>
           {coverUrl && (
             <div className="flex justify-center">
-              <img src={coverUrl} alt="Cover preview" className="h-28 object-contain rounded border" onError={(e) => (e.currentTarget.style.display = "none")} />
+              <img
+                src={coverUrl}
+                alt="Cover preview"
+                className="h-28 object-contain rounded border"
+                onError={(e) => (e.currentTarget.style.display = "none")}
+              />
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-1" />Saving…</> : "Save changes"}
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  Saving…
+                </>
+              ) : (
+                "Save changes"
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -229,5 +289,3 @@ function EditModal({
     </Dialog>
   );
 }
-
-

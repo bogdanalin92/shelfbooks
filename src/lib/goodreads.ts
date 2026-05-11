@@ -3,13 +3,19 @@ import type { BookHit } from "./openlibrary";
 
 function extractMeta(html: string, property: string): string | null {
   const m =
-    html.match(new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`, "i")) ??
-    html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`, "i"));
+    html.match(
+      new RegExp(`<meta[^>]+property=["']${property}["'][^>]+content=["']([^"']+)["']`, "i"),
+    ) ??
+    html.match(
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${property}["']`, "i"),
+    );
   return m ? m[1] : null;
 }
 
 function extractLdJson(html: string): Record<string, any> | null {
-  const matches = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  const matches = [
+    ...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi),
+  ];
   for (const m of matches) {
     try {
       const data = JSON.parse(m[1]);
@@ -60,17 +66,16 @@ export const fetchGoodreadsBook = createServerFn({ method: "GET" })
           : [ld.author.name ?? ld.author].filter(Boolean)
         : [];
       const isbn = ld.isbn ?? extractIsbn(html) ?? null;
-      const cover =
-        ld.image ??
-        extractMeta(html, "og:image") ??
-        null;
+      const cover = ld.image ?? extractMeta(html, "og:image") ?? null;
       const yearStr = ld.datePublished ?? ld.copyrightYear ?? null;
       return {
         isbn,
         title: ld.name ?? ld.title ?? "Untitled",
         authors,
         cover_url: cover,
-        published_year: yearStr ? parseInt(String(yearStr).match(/\d{4}/)?.[0] ?? "") || null : null,
+        published_year: yearStr
+          ? parseInt(String(yearStr).match(/\d{4}/)?.[0] ?? "") || null
+          : null,
       };
     }
 

@@ -2,14 +2,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Level = "info" | "warn" | "error";
 
-export async function logEvent(
-  level: Level,
-  source: string,
-  message: string,
-  context?: unknown
-) {
+export async function logEvent(level: Level, source: string, message: string, context?: unknown) {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return; // only signed-in users can write logs
     await supabase.from("logs").insert({
       user_id: user.id,

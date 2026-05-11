@@ -29,15 +29,32 @@ function AddBook() {
   return (
     <Tabs defaultValue="scan" className="space-y-4">
       <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="scan"><ScanLine className="h-4 w-4 mr-1"/>Scan</TabsTrigger>
-        <TabsTrigger value="search"><Search className="h-4 w-4 mr-1"/>Search</TabsTrigger>
-        <TabsTrigger value="goodreads"><BookMarked className="h-4 w-4 mr-1"/>Goodreads</TabsTrigger>
+        <TabsTrigger value="scan">
+          <ScanLine className="h-4 w-4 mr-1" />
+          Scan
+        </TabsTrigger>
+        <TabsTrigger value="search">
+          <Search className="h-4 w-4 mr-1" />
+          Search
+        </TabsTrigger>
+        <TabsTrigger value="goodreads">
+          <BookMarked className="h-4 w-4 mr-1" />
+          Goodreads
+        </TabsTrigger>
         <TabsTrigger value="manual">ISBN</TabsTrigger>
       </TabsList>
-      <TabsContent value="scan"><ScanTab /></TabsContent>
-      <TabsContent value="search"><SearchTab /></TabsContent>
-      <TabsContent value="goodreads"><GoodreadsTab /></TabsContent>
-      <TabsContent value="manual"><ManualTab /></TabsContent>
+      <TabsContent value="scan">
+        <ScanTab />
+      </TabsContent>
+      <TabsContent value="search">
+        <SearchTab />
+      </TabsContent>
+      <TabsContent value="goodreads">
+        <GoodreadsTab />
+      </TabsContent>
+      <TabsContent value="manual">
+        <ManualTab />
+      </TabsContent>
     </Tabs>
   );
 }
@@ -95,7 +112,7 @@ function ScanTab() {
           } finally {
             setLoading(false);
           }
-        }
+        },
       );
       controlsRef.current = controls;
     } catch (e: any) {
@@ -137,10 +154,22 @@ function ScanTab() {
           Point at the barcode on the back of the book.
         </p>
       </Card>
-      {loading && <p className="text-center text-sm text-muted-foreground"><Loader2 className="inline h-4 w-4 animate-spin mr-1"/>Looking up…</p>}
+      {loading && (
+        <p className="text-center text-sm text-muted-foreground">
+          <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
+          Looking up…
+        </p>
+      )}
       {error && <p className="text-center text-sm text-destructive">{error}</p>}
       {notFoundIsbn && !hit && (
-        <ManualEntry isbn={notFoundIsbn} onCancel={() => setNotFoundIsbn(null)} onPicked={(h) => { setHit(h); setNotFoundIsbn(null); }} />
+        <ManualEntry
+          isbn={notFoundIsbn}
+          onCancel={() => setNotFoundIsbn(null)}
+          onPicked={(h) => {
+            setHit(h);
+            setNotFoundIsbn(null);
+          }}
+        />
       )}
       {hit && <BookPreview hit={hit} onSaved={() => setHit(null)} />}
     </div>
@@ -173,11 +202,16 @@ function SearchTab() {
   if (addingManually) {
     return (
       <div className="space-y-3">
-        <Button variant="ghost" size="sm" onClick={() => setAddingManually(false)}>← Back to search</Button>
+        <Button variant="ghost" size="sm" onClick={() => setAddingManually(false)}>
+          ← Back to search
+        </Button>
         <ManualEntry
           isbn=""
           onCancel={() => setAddingManually(false)}
-          onPicked={(h) => { setPicked(h); setAddingManually(false); }}
+          onPicked={(h) => {
+            setPicked(h);
+            setAddingManually(false);
+          }}
         />
       </div>
     );
@@ -192,7 +226,7 @@ function SearchTab() {
           placeholder="Title, author, keyword…"
         />
         <Button type="submit" disabled={busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin"/> : <Search className="h-4 w-4"/>}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
         </Button>
       </form>
 
@@ -202,7 +236,9 @@ function SearchTab() {
         <>
           {searched && results.length === 0 && !busy && (
             <div className="text-center space-y-3 py-6">
-              <p className="text-sm text-muted-foreground">No results found for "<strong>{q}</strong>".</p>
+              <p className="text-sm text-muted-foreground">
+                No results found for "<strong>{q}</strong>".
+              </p>
               <Button variant="outline" onClick={() => setAddingManually(true)}>
                 Add manually
               </Button>
@@ -217,12 +253,19 @@ function SearchTab() {
                 >
                   <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded bg-muted">
                     {r.cover_url && (
-                      <img src={r.cover_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      <img
+                        src={r.cover_url}
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
                     )}
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium line-clamp-2 text-sm">{r.title}</p>
-                    <p className="text-xs text-muted-foreground line-clamp-1">{r.authors.join(", ")}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      {r.authors.join(", ")}
+                    </p>
                     {r.published_year && (
                       <p className="text-xs text-muted-foreground">{r.published_year}</p>
                     )}
@@ -261,7 +304,9 @@ function GoodreadsTab() {
       setHit(book);
     } catch (err: any) {
       logError("goodreads.import", err?.message, err);
-      setError(err?.message ?? "Could not import book. Make sure the URL is a Goodreads book page.");
+      setError(
+        err?.message ?? "Could not import book. Make sure the URL is a Goodreads book page.",
+      );
     } finally {
       setBusy(false);
     }
@@ -280,11 +325,26 @@ function GoodreadsTab() {
           type="url"
         />
         <Button type="submit" disabled={busy} className="w-full">
-          {busy ? <><Loader2 className="h-4 w-4 animate-spin mr-1"/>Importing…</> : "Import from Goodreads"}
+          {busy ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              Importing…
+            </>
+          ) : (
+            "Import from Goodreads"
+          )}
         </Button>
       </form>
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {hit && <BookPreview hit={hit} onSaved={() => { setHit(null); setUrl(""); }} />}
+      {hit && (
+        <BookPreview
+          hit={hit}
+          onSaved={() => {
+            setHit(null);
+            setUrl("");
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -322,19 +382,34 @@ function ManualTab() {
             placeholder="9780000000000"
           />
           <Button type="submit" disabled={busy}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin"/> : "Find"}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Find"}
           </Button>
         </div>
       </form>
       {notFound && !hit && (
-        <ManualEntry isbn={notFound} onCancel={() => setNotFound(null)} onPicked={(h) => { setHit(h); setNotFound(null); }} />
+        <ManualEntry
+          isbn={notFound}
+          onCancel={() => setNotFound(null)}
+          onPicked={(h) => {
+            setHit(h);
+            setNotFound(null);
+          }}
+        />
       )}
       {hit && <BookPreview hit={hit} onSaved={() => setHit(null)} />}
     </div>
   );
 }
 
-function ManualEntry({ isbn, onPicked, onCancel }: { isbn: string; onPicked: (h: BookHit) => void; onCancel: () => void }) {
+function ManualEntry({
+  isbn,
+  onPicked,
+  onCancel,
+}: {
+  isbn: string;
+  onPicked: (h: BookHit) => void;
+  onCancel: () => void;
+}) {
   const [title, setTitle] = useState("");
   const [authors, setAuthors] = useState("");
   const [year, setYear] = useState("");
@@ -346,7 +421,10 @@ function ManualEntry({ isbn, onPicked, onCancel }: { isbn: string; onPicked: (h:
     onPicked({
       isbn: isbn || null,
       title: title.trim(),
-      authors: authors.split(",").map((s) => s.trim()).filter(Boolean),
+      authors: authors
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
       cover_url: coverUrl.trim() || null,
       published_year: year ? parseInt(year) || null : null,
     });
@@ -370,15 +448,29 @@ function ManualEntry({ isbn, onPicked, onCancel }: { isbn: string; onPicked: (h:
         </div>
         <div>
           <Label htmlFor="m-year">Published year</Label>
-          <Input id="m-year" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} />
+          <Input
+            id="m-year"
+            inputMode="numeric"
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+          />
         </div>
         <div>
           <Label htmlFor="m-cover">Cover image URL (optional)</Label>
-          <Input id="m-cover" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
+          <Input
+            id="m-cover"
+            value={coverUrl}
+            onChange={(e) => setCoverUrl(e.target.value)}
+            placeholder="https://…"
+          />
         </div>
         <div className="flex gap-2">
-          <Button type="submit" size="sm">Continue</Button>
-          <Button type="button" variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" size="sm">
+            Continue
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
         </div>
       </form>
     </Card>

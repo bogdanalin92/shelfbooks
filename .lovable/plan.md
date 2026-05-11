@@ -6,10 +6,12 @@ A mobile-first installable web app to catalog physical books. Each user has a pr
 
 1. **Auth** — Email/password + Google sign-in via Lovable Cloud. Each user sees only their own books (RLS).
 2. **Add a book** — three ways:
-  - Scan ISBN barcode with phone camera
-  - Search by title/author (Open Library API)
-  - Type ISBN manually
-   Selected book is fetched from Open Library, then saved to the user's library.
+
+- Scan ISBN barcode with phone camera
+- Search by title/author (Open Library API)
+- Type ISBN manually
+  Selected book is fetched from Open Library, then saved to the user's library.
+
 3. **My Library** — grid/list of saved books with cover, title, author. Filter by reading status. Tap a book to view details, edit status, or remove.
 4. **Reading status** — `to-read` / `reading` / `finished`, editable per book.
 5. **Installable PWA** — manifest + icons so the user can "Add to Home Screen" on Android and iOS and launch it like a native app. No service worker / offline cache (avoids preview issues).

@@ -44,9 +44,11 @@ function LoginPage() {
       }
     } catch (err: any) {
       logError("login.auth", err?.message ?? "auth failed", err);
-      const msg = typeof err?.message === "string" && /invalid|password|email|credentials|confirm/i.test(err.message)
-        ? "Invalid email or password."
-        : "Sign-in failed. Please try again.";
+      const msg =
+        typeof err?.message === "string" &&
+        /invalid|password|email|credentials|confirm/i.test(err.message)
+          ? "Invalid email or password."
+          : "Sign-in failed. Please try again.";
       toast.error(msg);
     } finally {
       setBusy(false);
