@@ -7,3 +7,7 @@ dist
 wrangler.jsonc
 .lovable
 README.md
+
+# Never bake secrets into the image — pass VITE_* as --build-arg at build time
+.env
+.env.*
