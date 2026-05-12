@@ -60,11 +60,7 @@ function BookDetail() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("books")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
+      const { data, error } = await supabase.from("books").select("*").eq("id", id).maybeSingle();
       if (cancelled) return;
       if (error) {
         logError("book.fetch", error.message, error);
@@ -79,7 +75,9 @@ function BookDetail() {
   }, [id]);
 
   if (fetchError)
-    return <p className="text-center text-destructive py-12">Failed to load book. Please refresh.</p>;
+    return (
+      <p className="text-center text-destructive py-12">Failed to load book. Please refresh.</p>
+    );
   if (book === undefined)
     return <p className="text-center text-muted-foreground py-12">Loading…</p>;
   if (!book) return <p className="text-center text-muted-foreground py-12">Book not found.</p>;

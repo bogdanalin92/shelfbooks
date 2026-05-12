@@ -63,7 +63,10 @@ function parseGoodreadsHtml(html: string): BookHit {
       : [];
     const isbn = (ld.isbn as string | null | undefined) ?? extractIsbn(html) ?? null;
     const cover = (ld.image as string | null | undefined) ?? extractMeta(html, "og:image") ?? null;
-    const yearStr = (ld.datePublished as string | null | undefined) ?? (ld.copyrightYear as string | null | undefined) ?? null;
+    const yearStr =
+      (ld.datePublished as string | null | undefined) ??
+      (ld.copyrightYear as string | null | undefined) ??
+      null;
     return {
       isbn,
       title: (ld.name as string | undefined) ?? (ld.title as string | undefined) ?? "Untitled",
