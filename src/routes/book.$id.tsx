@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,10 +21,21 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { Trash2, ArrowLeft, Pencil, Loader2 } from "lucide-react";
 import { logError } from "@/lib/logger";
+import { isValidCoverUrl } from "@/lib/utils";
 
 export const Route = createFileRoute("/book/$id")({
   component: () => (
@@ -38,25 +50,47 @@ type Status = Book["status"];
 
 function BookDetail() {
   const { id } = Route.useParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [book, setBook] = useState<Book | null | undefined>(undefined);
+  const [fetchError, setFetchError] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
 
   useEffect(() => {
-    supabase
-      .from("books")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle()
-      .then(({ data }) => setBook(data));
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("books")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        logError("book.fetch", error.message, error);
+        setFetchError(true);
+        return;
+      }
+      setBook(data);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
+  if (fetchError)
+    return <p className="text-center text-destructive py-12">Failed to load book. Please refresh.</p>;
   if (book === undefined)
     return <p className="text-center text-muted-foreground py-12">Loading…</p>;
   if (!book) return <p className="text-center text-muted-foreground py-12">Book not found.</p>;
 
   const updateStatus = async (status: Status) => {
-    const { error } = await supabase.from("books").update({ status }).eq("id", book.id);
+    if (!user) return;
+    const { error } = await supabase
+      .from("books")
+      .update({ status })
+      .eq("id", book.id)
+      .eq("user_id", user.id);
     if (error) {
       logError("book.updateStatus", error.message, error);
       return toast.error("Couldn't update the book. Please try again.");
@@ -66,8 +100,12 @@ function BookDetail() {
   };
 
   const remove = async () => {
-    if (!confirm("Remove this book from your library?")) return;
-    const { error } = await supabase.from("books").delete().eq("id", book.id);
+    if (!user) return;
+    const { error } = await supabase
+      .from("books")
+      .delete()
+      .eq("id", book.id)
+      .eq("user_id", user.id);
     if (error) {
       logError("book.remove", error.message, error);
       return toast.error("Couldn't remove the book. Please try again.");
@@ -117,9 +155,29 @@ function BookDetail() {
         </Select>
       </Card>
 
-      <Button variant="destructive" onClick={remove} className="w-full">
+      <Button variant="destructive" onClick={() => setRemoveOpen(true)} className="w-full">
         <Trash2 className="h-4 w-4 mr-1" /> Remove from library
       </Button>
+
+      <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from library?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{book.title}" will be permanently removed from your library. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={remove}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <EditModal
         book={book}
@@ -166,6 +224,11 @@ function EditModal({
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    const cleanCoverUrl = coverUrl.trim();
+    if (!isValidCoverUrl(cleanCoverUrl)) {
+      toast.warning("Cover URL must use HTTPS.");
+      return;
+    }
     setSaving(true);
     const updates = {
       title: title.trim(),
@@ -175,13 +238,14 @@ function EditModal({
         .filter(Boolean),
       isbn: isbn.trim() || null,
       published_year: year ? parseInt(year) || null : null,
-      cover_url: coverUrl.trim() || null,
+      cover_url: cleanCoverUrl || null,
       status,
     };
     const { data, error } = await supabase
       .from("books")
       .update(updates)
       .eq("id", book.id)
+      .eq("user_id", book.user_id)
       .select()
       .single();
     setSaving(false);

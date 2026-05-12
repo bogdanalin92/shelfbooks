@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth-context";
 import { lookupByIsbn, searchBooks, type BookHit } from "@/lib/openlibrary";
 import { fetchGoodreadsBook, lookupGoodreadsByIsbn } from "@/lib/goodreads";
 import { logError } from "@/lib/logger";
+import { isValidCoverUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { Camera, Loader2, Search, ScanLine, BookMarked } from "lucide-react";
 
@@ -490,6 +491,11 @@ function ManualEntry({
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    const cleanCoverUrl = coverUrl.trim();
+    if (!isValidCoverUrl(cleanCoverUrl)) {
+      toast.warning("Cover URL must use HTTPS.");
+      return;
+    }
     onPicked({
       isbn: isbn || null,
       title: title.trim(),
@@ -497,7 +503,7 @@ function ManualEntry({
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
-      cover_url: coverUrl.trim() || null,
+      cover_url: cleanCoverUrl || null,
       published_year: year ? parseInt(year) || null : null,
     });
   };

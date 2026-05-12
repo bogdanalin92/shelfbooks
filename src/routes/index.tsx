@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { logError } from "@/lib/logger";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -131,16 +132,30 @@ function LibrarySearch({
 function Library() {
   const { user } = useAuth();
   const [books, setBooks] = useState<Book[] | null>(null);
+  const [fetchError, setFetchError] = useState(false);
   const [filter, setFilter] = useState<"all" | Book["status"]>("all");
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("books")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setBooks(data ?? []));
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("books")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        logError("library.fetch", error.message, error);
+        setFetchError(true);
+        return;
+      }
+      setBooks(data ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const filtered = books?.filter((b) => filter === "all" || b.status === filter) ?? [];
@@ -171,7 +186,11 @@ function Library() {
 
       <LibrarySearch books={books ?? []} open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      {books === null ? (
+      {fetchError ? (
+        <p className="text-center text-destructive py-12">
+          Failed to load your library. Please refresh.
+        </p>
+      ) : books === null ? (
         <p className="text-center text-muted-foreground py-12">Loading…</p>
       ) : filtered.length === 0 ? (
         <Card className="p-8 text-center space-y-3">

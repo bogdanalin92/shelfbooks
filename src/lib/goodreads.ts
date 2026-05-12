@@ -61,12 +61,12 @@ function parseGoodreadsHtml(html: string): BookHit {
               : rawAuthor,
           ].filter(Boolean)
       : [];
-    const isbn = ld.isbn ?? extractIsbn(html) ?? null;
-    const cover = ld.image ?? extractMeta(html, "og:image") ?? null;
-    const yearStr = ld.datePublished ?? ld.copyrightYear ?? null;
+    const isbn = (ld.isbn as string | null | undefined) ?? extractIsbn(html) ?? null;
+    const cover = (ld.image as string | null | undefined) ?? extractMeta(html, "og:image") ?? null;
+    const yearStr = (ld.datePublished as string | null | undefined) ?? (ld.copyrightYear as string | null | undefined) ?? null;
     return {
       isbn,
-      title: ld.name ?? ld.title ?? "Untitled",
+      title: (ld.name as string | undefined) ?? (ld.title as string | undefined) ?? "Untitled",
       authors,
       cover_url: cover,
       published_year: yearStr ? parseInt(String(yearStr).match(/\d{4}/)?.[0] ?? "") || null : null,
@@ -92,7 +92,14 @@ function parseGoodreadsHtml(html: string): BookHit {
 
 export const fetchGoodreadsBook = createServerFn({ method: "GET" })
   .inputValidator((url: unknown) => {
-    if (typeof url !== "string" || !url.includes("goodreads.com")) {
+    if (typeof url !== "string") throw new Error("Please provide a valid Goodreads book URL");
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error("Please provide a valid Goodreads book URL");
+    }
+    if (parsed.protocol !== "https:" || !parsed.hostname.endsWith("goodreads.com")) {
       throw new Error("Please provide a valid Goodreads book URL");
     }
     return url;
