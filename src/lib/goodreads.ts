@@ -69,9 +69,7 @@ function parseGoodreadsHtml(html: string): BookHit {
       title: ld.name ?? ld.title ?? "Untitled",
       authors,
       cover_url: cover,
-      published_year: yearStr
-        ? parseInt(String(yearStr).match(/\d{4}/)?.[0] ?? "") || null
-        : null,
+      published_year: yearStr ? parseInt(String(yearStr).match(/\d{4}/)?.[0] ?? "") || null : null,
     };
   }
 

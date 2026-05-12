@@ -169,7 +169,10 @@ function ScanTab() {
         <p className="text-center text-sm text-muted-foreground">
           <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
           {loadingStage === "isbn" ? (
-            <>Searching for the <span className="font-mono font-medium text-foreground">{scannedIsbn}</span> ISBN…</>
+            <>
+              Searching for the{" "}
+              <span className="font-mono font-medium text-foreground">{scannedIsbn}</span> ISBN…
+            </>
           ) : (
             <>Not found in Open Library, trying Goodreads…</>
           )}
