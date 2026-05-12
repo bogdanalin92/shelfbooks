@@ -569,9 +569,8 @@ function BookPreview({
     let cancelled = false;
     const check = async () => {
       const dupQuery = supabase.from("books").select("id").eq("user_id", user.id);
-      const { data } = await (hit.isbn
-        ? dupQuery.eq("isbn", hit.isbn)
-        : dupQuery.ilike("title", hit.title)
+      const { data } = await (
+        hit.isbn ? dupQuery.eq("isbn", hit.isbn) : dupQuery.ilike("title", hit.title)
       ).maybeSingle();
       if (!cancelled) setExistingId(data?.id ?? null);
     };
