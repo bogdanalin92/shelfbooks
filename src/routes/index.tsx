@@ -1,11 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { BookOpen, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BookOpen, Plus, Search } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/")({
@@ -35,10 +37,102 @@ function Index() {
   );
 }
 
+function LibrarySearch({
+  books,
+  open,
+  onClose,
+}: {
+  books: Book[];
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const navigate = useNavigate();
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return books.filter(
+      (b) =>
+        b.title.toLowerCase().includes(q) ||
+        (b.isbn ?? "").toLowerCase().includes(q) ||
+        b.authors.some((a) => a.toLowerCase().includes(q)),
+    );
+  }, [query, books]);
+
+  const handleSelect = (id: string) => {
+    onClose();
+    setQuery("");
+    navigate({ to: "/book/$id", params: { id } });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          setQuery("");
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogTitle>Search library</DialogTitle>
+        </DialogHeader>
+        <div className="px-4 pb-2">
+          <Input
+            autoFocus
+            placeholder="Title, author or ISBN…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        <div className="max-h-96 overflow-y-auto divide-y">
+          {query.trim() && results.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No books match "<strong>{query}</strong>"
+            </p>
+          ) : (
+            results.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => handleSelect(b.id)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors"
+              >
+                <div className="h-12 w-8 shrink-0 overflow-hidden rounded bg-muted">
+                  {b.cover_url ? (
+                    <img src={b.cover_url} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <BookOpen className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium line-clamp-1">{b.title}</p>
+                  {b.authors[0] && (
+                    <p className="text-xs text-muted-foreground line-clamp-1">{b.authors[0]}</p>
+                  )}
+                  {b.isbn && <p className="text-xs text-muted-foreground font-mono">{b.isbn}</p>}
+                </div>
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">
+                  {STATUS_LABEL[b.status]}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Library() {
   const { user } = useAuth();
   const [books, setBooks] = useState<Book[] | null>(null);
   const [filter, setFilter] = useState<"all" | Book["status"]>("all");
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -64,7 +158,18 @@ function Library() {
             {f.label}
           </Button>
         ))}
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto shrink-0"
+          onClick={() => setSearchOpen(true)}
+          aria-label="Search library"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
       </div>
+
+      <LibrarySearch books={books ?? []} open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {books === null ? (
         <p className="text-center text-muted-foreground py-12">Loading…</p>
