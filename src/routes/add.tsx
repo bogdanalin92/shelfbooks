@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { lookupByIsbn, searchBooks, type BookHit } from "@/lib/openlibrary";
-import { fetchGoodreadsBook } from "@/lib/goodreads";
+import { fetchGoodreadsBook, lookupGoodreadsByIsbn } from "@/lib/goodreads";
 import { logError } from "@/lib/logger";
 import { toast } from "sonner";
 import { Camera, Loader2, Search, ScanLine, BookMarked } from "lucide-react";
@@ -65,6 +65,8 @@ function ScanTab() {
   const [error, setError] = useState<string | null>(null);
   const [hit, setHit] = useState<BookHit | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<"isbn" | "goodreads">("isbn");
+  const [scannedIsbn, setScannedIsbn] = useState<string | null>(null);
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
 
@@ -78,6 +80,7 @@ function ScanTab() {
     setError(null);
     setHit(null);
     setNotFoundIsbn(null);
+    setScannedIsbn(null);
     setScanning(true);
     try {
       const hints = new Map();
@@ -101,13 +104,21 @@ function ScanTab() {
           if (!result) return;
           const text = result.getText();
           stop();
+          setScannedIsbn(text);
+          setLoadingStage("isbn");
           setLoading(true);
           try {
             const book = await lookupByIsbn(text);
-            if (!book) {
-              setNotFoundIsbn(text);
-            } else {
+            if (book) {
               setHit(book);
+            } else {
+              setLoadingStage("goodreads");
+              const goodreadsBook = await lookupGoodreadsByIsbn({ data: text });
+              if (goodreadsBook) {
+                setHit(goodreadsBook);
+              } else {
+                setNotFoundIsbn(text);
+              }
             }
           } finally {
             setLoading(false);
@@ -157,7 +168,11 @@ function ScanTab() {
       {loading && (
         <p className="text-center text-sm text-muted-foreground">
           <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
-          Looking up…
+          {loadingStage === "isbn" ? (
+            <>Searching for the <span className="font-mono font-medium text-foreground">{scannedIsbn}</span> ISBN…</>
+          ) : (
+            <>Not found in Open Library, trying Goodreads…</>
+          )}
         </p>
       )}
       {error && <p className="text-center text-sm text-destructive">{error}</p>}

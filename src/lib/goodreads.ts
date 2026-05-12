@@ -37,6 +37,61 @@ function extractIsbn(html: string): string | null {
   return m2 ? m2[0] : null;
 }
 
+const GOODREADS_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml",
+  "Accept-Language": "en-US,en;q=0.9",
+};
+
+function parseGoodreadsHtml(html: string): BookHit {
+  type LdAuthorEntry = { name?: string } | string;
+
+  const ld = extractLdJson(html);
+  if (ld) {
+    const rawAuthor = ld.author as LdAuthorEntry | LdAuthorEntry[] | null | undefined;
+    const authors: string[] = rawAuthor
+      ? Array.isArray(rawAuthor)
+        ? rawAuthor
+            .map((a) => (typeof a === "object" && a !== null ? (a.name ?? "") : a))
+            .filter(Boolean)
+        : [
+            typeof rawAuthor === "object" && rawAuthor !== null
+              ? (rawAuthor.name ?? "")
+              : rawAuthor,
+          ].filter(Boolean)
+      : [];
+    const isbn = ld.isbn ?? extractIsbn(html) ?? null;
+    const cover = ld.image ?? extractMeta(html, "og:image") ?? null;
+    const yearStr = ld.datePublished ?? ld.copyrightYear ?? null;
+    return {
+      isbn,
+      title: ld.name ?? ld.title ?? "Untitled",
+      authors,
+      cover_url: cover,
+      published_year: yearStr
+        ? parseInt(String(yearStr).match(/\d{4}/)?.[0] ?? "") || null
+        : null,
+    };
+  }
+
+  const title = extractMeta(html, "og:title");
+  if (!title) throw new Error("Could not extract book data from this Goodreads page");
+
+  const cover = extractMeta(html, "og:image");
+  const descMatch = html.match(/by\s+<[^>]+>([^<]+)<\/[^>]+>/i);
+  const authors = descMatch ? [descMatch[1].trim()] : [];
+  const isbn = extractIsbn(html);
+
+  return {
+    isbn,
+    title: title.replace(/ by .+$/, "").trim(),
+    authors,
+    cover_url: cover ?? null,
+    published_year: null,
+  };
+}
+
 export const fetchGoodreadsBook = createServerFn({ method: "GET" })
   .inputValidator((url: unknown) => {
     if (typeof url !== "string" || !url.includes("goodreads.com")) {
@@ -45,65 +100,25 @@ export const fetchGoodreadsBook = createServerFn({ method: "GET" })
     return url;
   })
   .handler(async ({ data: url }): Promise<BookHit> => {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      redirect: "follow",
-    });
-
+    const res = await fetch(url, { headers: GOODREADS_HEADERS, redirect: "follow" });
     if (!res.ok) throw new Error(`Goodreads returned ${res.status}`);
+    return parseGoodreadsHtml(await res.text());
+  });
 
-    const html = await res.text();
-
-    // 1. Try JSON-LD structured data (most reliable)
-    const ld = extractLdJson(html);
-    if (ld) {
-      type LdAuthorEntry = { name?: string } | string;
-      const rawAuthor = ld.author as LdAuthorEntry | LdAuthorEntry[] | null | undefined;
-      const authors: string[] = rawAuthor
-        ? Array.isArray(rawAuthor)
-          ? rawAuthor
-              .map((a) => (typeof a === "object" && a !== null ? (a.name ?? "") : a))
-              .filter(Boolean)
-          : [
-              typeof rawAuthor === "object" && rawAuthor !== null
-                ? (rawAuthor.name ?? "")
-                : rawAuthor,
-            ].filter(Boolean)
-        : [];
-      const isbn = ld.isbn ?? extractIsbn(html) ?? null;
-      const cover = ld.image ?? extractMeta(html, "og:image") ?? null;
-      const yearStr = ld.datePublished ?? ld.copyrightYear ?? null;
-      return {
-        isbn,
-        title: ld.name ?? ld.title ?? "Untitled",
-        authors,
-        cover_url: cover,
-        published_year: yearStr
-          ? parseInt(String(yearStr).match(/\d{4}/)?.[0] ?? "") || null
-          : null,
-      };
+export const lookupGoodreadsByIsbn = createServerFn({ method: "GET" })
+  .inputValidator((isbn: unknown) => {
+    if (typeof isbn !== "string") throw new Error("Invalid ISBN");
+    return isbn.replace(/[^0-9Xx]/g, "");
+  })
+  .handler(async ({ data: isbn }): Promise<BookHit | null> => {
+    try {
+      const res = await fetch(`https://www.goodreads.com/book/isbn/${isbn}`, {
+        headers: GOODREADS_HEADERS,
+        redirect: "follow",
+      });
+      if (!res.ok) return null;
+      return parseGoodreadsHtml(await res.text());
+    } catch {
+      return null;
     }
-
-    // 2. Fallback: Open Graph meta tags
-    const title = extractMeta(html, "og:title");
-    if (!title) throw new Error("Could not extract book data from this Goodreads page");
-
-    const cover = extractMeta(html, "og:image");
-    // Try to find author from description or page
-    const descMatch = html.match(/by\s+<[^>]+>([^<]+)<\/[^>]+>/i);
-    const authors = descMatch ? [descMatch[1].trim()] : [];
-    const isbn = extractIsbn(html);
-
-    return {
-      isbn,
-      title: title.replace(/ by .+$/, "").trim(),
-      authors,
-      cover_url: cover ?? null,
-      published_year: null,
-    };
   });
