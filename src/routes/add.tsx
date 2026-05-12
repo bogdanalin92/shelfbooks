@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import * as zxing from "@zxing/library";
@@ -60,6 +60,7 @@ function AddBook() {
 }
 
 function ScanTab() {
+  const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +109,26 @@ function ScanTab() {
           setLoadingStage("isbn");
           setLoading(true);
           try {
+            // 1. Check the user's own library first
+            if (user) {
+              const { data: own } = await supabase
+                .from("books")
+                .select("isbn, title, authors, cover_url, published_year")
+                .eq("user_id", user.id)
+                .eq("isbn", text)
+                .maybeSingle();
+              if (own) {
+                setHit({
+                  isbn: own.isbn,
+                  title: own.title,
+                  authors: own.authors,
+                  cover_url: own.cover_url,
+                  published_year: own.published_year,
+                });
+                return;
+              }
+            }
+            // 2. Try OpenLibrary then Goodreads
             const book = await lookupByIsbn(text);
             if (book) {
               setHit(book);
@@ -376,6 +397,7 @@ function GoodreadsTab() {
 }
 
 function ManualTab() {
+  const { user } = useAuth();
   const [isbn, setIsbn] = useState("");
   const [hit, setHit] = useState<BookHit | null>(null);
   const [busy, setBusy] = useState(false);
@@ -387,9 +409,33 @@ function ManualTab() {
     setNotFound(null);
     setHit(null);
     try {
+      const cleanIsbn = isbn.replace(/[^0-9Xx]/g, "");
+      // 1. Check the user's own library first
+      if (user) {
+        const { data: own } = await supabase
+          .from("books")
+          .select("isbn, title, authors, cover_url, published_year")
+          .eq("user_id", user.id)
+          .eq("isbn", cleanIsbn)
+          .maybeSingle();
+        if (own) {
+          setHit({
+            isbn: own.isbn,
+            title: own.title,
+            authors: own.authors,
+            cover_url: own.cover_url,
+            published_year: own.published_year,
+          });
+          return;
+        }
+      }
+      // 2. Fall back to OpenLibrary
       const b = await lookupByIsbn(isbn);
-      if (!b) setNotFound(isbn.replace(/[^0-9Xx]/g, ""));
-      else setHit(b);
+      if (b) {
+        setHit(b);
+        return;
+      }
+      setNotFound(cleanIsbn);
     } finally {
       setBusy(false);
     }
@@ -515,27 +561,49 @@ function BookPreview({
   const { user } = useAuth();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
+  // undefined = still checking, null = not in library, string = existing book id
+  const [existingId, setExistingId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const check = async () => {
+      const dupQuery = supabase.from("books").select("id").eq("user_id", user.id);
+      const { data } = await (hit.isbn
+        ? dupQuery.eq("isbn", hit.isbn)
+        : dupQuery.ilike("title", hit.title)
+      ).maybeSingle();
+      if (!cancelled) setExistingId(data?.id ?? null);
+    };
+    check();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, hit.isbn, hit.title]);
 
   const save = async () => {
     if (!user) return;
     setSaving(true);
-    const { error } = await supabase.from("books").insert({
-      user_id: user.id,
-      isbn: hit.isbn,
-      title: hit.title,
-      authors: hit.authors,
-      cover_url: hit.cover_url,
-      published_year: hit.published_year,
-    });
-    setSaving(false);
-    if (error) {
-      logError("add.saveBook", error.message, error);
-      toast.error("Couldn't save the book. Please try again.");
-      return;
+    try {
+      const { error } = await supabase.from("books").insert({
+        user_id: user.id,
+        isbn: hit.isbn,
+        title: hit.title,
+        authors: hit.authors,
+        cover_url: hit.cover_url,
+        published_year: hit.published_year,
+      });
+      if (error) {
+        logError("add.saveBook", error.message, error);
+        toast.error("Couldn't save the book. Please try again.");
+        return;
+      }
+      toast.success("Added to your library");
+      onSaved();
+      if (redirectAfterSave) navigate({ to: "/" });
+    } finally {
+      setSaving(false);
     }
-    toast.success("Added to your library");
-    onSaved();
-    if (redirectAfterSave) navigate({ to: "/" });
   };
 
   return (
@@ -550,9 +618,26 @@ function BookPreview({
           <p className="text-xs text-muted-foreground">{hit.published_year}</p>
         )}
         {hit.isbn && <p className="text-xs text-muted-foreground">ISBN {hit.isbn}</p>}
-        <Button onClick={save} disabled={saving} className="mt-auto self-start" size="sm">
-          {saving ? "Saving…" : "Add to library"}
-        </Button>
+        <div className="mt-auto">
+          {existingId === undefined && (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+          {existingId !== null && existingId !== undefined && (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">Already in your library</p>
+              <Button asChild size="sm" variant="outline">
+                <Link to="/book/$id" params={{ id: existingId }}>
+                  View
+                </Link>
+              </Button>
+            </div>
+          )}
+          {existingId === null && (
+            <Button onClick={save} disabled={saving} size="sm">
+              {saving ? "Saving…" : "Add to library"}
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );
