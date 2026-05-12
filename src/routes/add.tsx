@@ -189,7 +189,16 @@ function ScanTab() {
           }}
         />
       )}
-      {hit && <BookPreview hit={hit} onSaved={() => setHit(null)} />}
+      {hit && (
+        <BookPreview
+          hit={hit}
+          redirectAfterSave={false}
+          onSaved={() => {
+            setHit(null);
+            setScannedIsbn(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -494,7 +503,15 @@ function ManualEntry({
   );
 }
 
-function BookPreview({ hit, onSaved }: { hit: BookHit; onSaved: () => void }) {
+function BookPreview({
+  hit,
+  onSaved,
+  redirectAfterSave = true,
+}: {
+  hit: BookHit;
+  onSaved: () => void;
+  redirectAfterSave?: boolean;
+}) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
@@ -518,7 +535,7 @@ function BookPreview({ hit, onSaved }: { hit: BookHit; onSaved: () => void }) {
     }
     toast.success("Added to your library");
     onSaved();
-    navigate({ to: "/" });
+    if (redirectAfterSave) navigate({ to: "/" });
   };
 
   return (
