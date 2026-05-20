@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BookOpen, Plus, Search } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -16,6 +23,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Book = Tables<"books">;
+type SortKey = "date_desc" | "date_asc" | "title_asc" | "author_asc";
 
 const STATUS_LABEL = {
   to_read: "To read",
@@ -29,6 +37,22 @@ const FILTERS: { id: "all" | Book["status"]; label: string }[] = [
   { id: "reading", label: "Reading" },
   { id: "finished", label: "Finished" },
 ];
+
+function sortBooks(books: Book[], sort: SortKey): Book[] {
+  return [...books].sort((a, b) => {
+    switch (sort) {
+      case "title_asc":
+        return a.title.localeCompare(b.title);
+      case "author_asc":
+        return (a.authors[0] ?? "").localeCompare(b.authors[0] ?? "");
+      case "date_asc":
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case "date_desc":
+      default:
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    }
+  });
+}
 
 function Index() {
   return (
@@ -134,17 +158,14 @@ function Library() {
   const [books, setBooks] = useState<Book[] | null>(null);
   const [fetchError, setFetchError] = useState(false);
   const [filter, setFilter] = useState<"all" | Book["status"]>("all");
+  const [sort, setSort] = useState<SortKey>("date_desc");
   const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("books")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("books").select("*").eq("user_id", user.id);
       if (cancelled) return;
       if (error) {
         logError("library.fetch", error.message, error);
@@ -158,10 +179,14 @@ function Library() {
     };
   }, [user]);
 
-  const filtered = books?.filter((b) => filter === "all" || b.status === filter) ?? [];
+  const filtered = useMemo(() => {
+    const base = books?.filter((b) => filter === "all" || b.status === filter) ?? [];
+    return sortBooks(base, sort);
+  }, [books, filter, sort]);
 
   return (
     <div className="space-y-4">
+      {/* Filter pills + search */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {FILTERS.map((f) => (
           <Button
@@ -182,6 +207,22 @@ function Library() {
         >
           <Search className="h-4 w-4" />
         </Button>
+      </div>
+
+      {/* Sort control */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground shrink-0">Sort by</span>
+        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+          <SelectTrigger className="h-8 text-xs w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date_desc">Date added (newest)</SelectItem>
+            <SelectItem value="date_asc">Date added (oldest)</SelectItem>
+            <SelectItem value="title_asc">Title A → Z</SelectItem>
+            <SelectItem value="author_asc">Author A → Z</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <LibrarySearch books={books ?? []} open={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -218,7 +259,7 @@ function Library() {
           {filtered.map((b) => (
             <li key={b.id}>
               <Link to="/book/$id" params={{ id: b.id }} className="block group">
-                <div className="aspect-[2/3] overflow-hidden rounded-md bg-muted">
+                <div className="aspect-2/3 overflow-hidden rounded-md bg-muted">
                   {b.cover_url ? (
                     <img
                       src={b.cover_url}

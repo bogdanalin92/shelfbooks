@@ -15,6 +15,7 @@ export type Database = {
           created_at: string;
           id: string;
           isbn: string | null;
+          notes: string | null;
           published_year: number | null;
           status: Database["public"]["Enums"]["book_status"];
           title: string;
@@ -27,6 +28,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           isbn?: string | null;
+          notes?: string | null;
           published_year?: number | null;
           status?: Database["public"]["Enums"]["book_status"];
           title: string;
@@ -39,6 +41,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           isbn?: string | null;
+          notes?: string | null;
           published_year?: number | null;
           status?: Database["public"]["Enums"]["book_status"];
           title?: string;

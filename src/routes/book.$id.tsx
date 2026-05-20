@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -119,7 +120,7 @@ function BookDetail() {
       </Button>
 
       <Card className="p-4 flex gap-4">
-        <div className="h-44 w-32 flex-shrink-0 overflow-hidden rounded bg-muted">
+        <div className="h-44 w-32 shrink-0 overflow-hidden rounded bg-muted">
           {book.cover_url && (
             <img src={book.cover_url} alt={book.title} className="h-full w-full object-cover" />
           )}
@@ -152,6 +153,14 @@ function BookDetail() {
           </SelectContent>
         </Select>
       </Card>
+
+      {/* Notes section */}
+      {book.notes && (
+        <Card className="p-4 space-y-1">
+          <p className="text-sm font-medium">Notes</p>
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{book.notes}</p>
+        </Card>
+      )}
 
       <Button variant="destructive" onClick={() => setRemoveOpen(true)} className="w-full">
         <Trash2 className="h-4 w-4 mr-1" /> Remove from library
@@ -207,9 +216,9 @@ function EditModal({
   const [year, setYear] = useState(book.published_year?.toString() ?? "");
   const [coverUrl, setCoverUrl] = useState(book.cover_url ?? "");
   const [status, setStatus] = useState<Status>(book.status);
+  const [notes, setNotes] = useState(book.notes ?? "");
   const [saving, setSaving] = useState(false);
 
-  // Reset form when book changes
   useEffect(() => {
     setTitle(book.title);
     setAuthors(book.authors.join(", "));
@@ -217,6 +226,7 @@ function EditModal({
     setYear(book.published_year?.toString() ?? "");
     setCoverUrl(book.cover_url ?? "");
     setStatus(book.status);
+    setNotes(book.notes ?? "");
   }, [book]);
 
   const save = async (e: React.FormEvent) => {
@@ -238,6 +248,7 @@ function EditModal({
       published_year: year ? parseInt(year) || null : null,
       cover_url: cleanCoverUrl || null,
       status,
+      notes: notes.trim() || null,
     };
     const { data, error } = await supabase
       .from("books")
@@ -320,6 +331,17 @@ function EditModal({
                 <SelectItem value="finished">Finished</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="e-notes">Notes</Label>
+            <Textarea
+              id="e-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Your thoughts, quotes, review…"
+              rows={3}
+              className="resize-none"
+            />
           </div>
           {coverUrl && (
             <div className="flex justify-center">
