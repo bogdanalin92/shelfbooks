@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { logError } from "@/lib/logger";
@@ -7,6 +8,7 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
@@ -155,34 +157,33 @@ function LibrarySearch({
 
 function Library() {
   const { user } = useAuth();
-  const [books, setBooks] = useState<Book[] | null>(null);
-  const [fetchError, setFetchError] = useState(false);
   const [filter, setFilter] = useState<"all" | Book["status"]>("all");
   const [sort, setSort] = useState<SortKey>("date_desc");
   const [searchOpen, setSearchOpen] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    (async () => {
-      const { data, error } = await supabase.from("books").select("*").eq("user_id", user.id);
-      if (cancelled) return;
+  const {
+    data: books,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["books", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("books").select("*").eq("user_id", user!.id);
       if (error) {
         logError("library.fetch", error.message, error);
-        setFetchError(true);
-        return;
+        throw error;
       }
-      setBooks(data ?? []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+      return (data ?? []) as Book[];
+    },
+    enabled: !!user,
+  });
+
+  const resolvedBooks = useMemo(() => books ?? [], [books]);
 
   const filtered = useMemo(() => {
-    const base = books?.filter((b) => filter === "all" || b.status === filter) ?? [];
+    const base = resolvedBooks.filter((b) => filter === "all" || b.status === filter);
     return sortBooks(base, sort);
-  }, [books, filter, sort]);
+  }, [resolvedBooks, filter, sort]);
 
   return (
     <div className="space-y-4">
@@ -225,28 +226,36 @@ function Library() {
         </Select>
       </div>
 
-      <LibrarySearch books={books ?? []} open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <LibrarySearch books={resolvedBooks} open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      {fetchError ? (
+      {isError ? (
         <p className="text-center text-destructive py-12">
           Failed to load your library. Please refresh.
         </p>
-      ) : books === null ? (
-        <p className="text-center text-muted-foreground py-12">Loading…</p>
+      ) : isLoading ? (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <li key={i} className="space-y-2">
+              <Skeleton className="aspect-2/3 w-full rounded-md" />
+              <Skeleton className="h-4 w-3/4 rounded" />
+              <Skeleton className="h-3 w-1/2 rounded" />
+            </li>
+          ))}
+        </ul>
       ) : filtered.length === 0 ? (
         <Card className="p-8 text-center space-y-3">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
             <BookOpen className="h-6 w-6 text-muted-foreground" />
           </div>
           <h2 className="font-semibold">
-            {books.length === 0 ? "Your library is empty" : "Nothing here"}
+            {resolvedBooks.length === 0 ? "Your library is empty" : "Nothing here"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {books.length === 0
+            {resolvedBooks.length === 0
               ? "Add your first book by scanning, searching, or entering an ISBN."
               : "Try a different filter."}
           </p>
-          {books.length === 0 && (
+          {resolvedBooks.length === 0 && (
             <Button asChild>
               <Link to="/add">
                 <Plus className="h-4 w-4 mr-1" /> Add a book

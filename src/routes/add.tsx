@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import * as zxing from "@zxing/library";
 const { BarcodeFormat, DecodeHintType } = zxing;
@@ -16,7 +17,11 @@ import { fetchGoodreadsBook, lookupGoodreadsByIsbn } from "@/lib/goodreads";
 import { logError } from "@/lib/logger";
 import { isValidCoverUrl } from "@/lib/utils";
 import { toast } from "sonner";
-import { Camera, Loader2, Search, ScanLine, BookMarked } from "lucide-react";
+import { Camera, CameraOff, Loader2, Search, ScanLine, BookMarked } from "lucide-react";
+import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+
+type Book = Tables<"books">;
+type BookInsert = TablesInsert<"books">;
 
 export const Route = createFileRoute("/add")({
   component: () => (
@@ -159,7 +164,7 @@ function ScanTab() {
   return (
     <div className="space-y-3">
       <Card className="p-4 space-y-3">
-        <div className="aspect-[4/3] overflow-hidden rounded-md bg-black relative">
+        <div className="aspect-4/3 overflow-hidden rounded-md bg-black relative">
           <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
           {!scanning && (
             <div className="absolute inset-0 flex items-center justify-center text-white/70 text-sm">
@@ -200,7 +205,31 @@ function ScanTab() {
           )}
         </p>
       )}
-      {error && <p className="text-center text-sm text-destructive">{error}</p>}
+      {error && (
+        <Card className="p-6 text-center space-y-3">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <CameraOff className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <div className="space-y-1">
+            <p className="font-semibold text-sm">Camera unavailable</p>
+            <p className="text-xs text-muted-foreground">
+              {error.toLowerCase().includes("permission") || error.toLowerCase().includes("allowed")
+                ? "Camera access was denied. Open your browser settings, allow camera access for this site, then try again."
+                : "Could not access the camera. Make sure no other app is using it, then try again."}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setError(null);
+              start();
+            }}
+          >
+            <Camera className="h-4 w-4 mr-1" /> Try again
+          </Button>
+        </Card>
+      )}
       {notFoundIsbn && !hit && (
         <ManualEntry
           isbn={notFoundIsbn}
@@ -300,7 +329,7 @@ function SearchTab() {
                   onClick={() => setPicked(r)}
                   className="flex w-full gap-3 text-left rounded-md border p-2 hover:bg-accent"
                 >
-                  <div className="h-20 w-14 flex-shrink-0 overflow-hidden rounded bg-muted">
+                  <div className="h-20 w-14 shrink-0 overflow-hidden rounded bg-muted">
                     {r.cover_url && (
                       <img
                         src={r.cover_url}
@@ -566,7 +595,7 @@ function BookPreview({
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [saving, setSaving] = useState(false);
+  const queryClient = useQueryClient();
   // undefined = still checking, null = not in library, string = existing book id
   const [existingId, setExistingId] = useState<string | null | undefined>(undefined);
 
@@ -586,34 +615,65 @@ function BookPreview({
     };
   }, [user, hit.isbn, hit.title]);
 
-  const save = async () => {
-    if (!user) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("books").insert({
-        user_id: user.id,
-        isbn: hit.isbn,
-        title: hit.title,
-        authors: hit.authors,
-        cover_url: hit.cover_url,
-        published_year: hit.published_year,
-      });
-      if (error) {
-        logError("add.saveBook", error.message, error);
-        toast.error("Couldn't save the book. Please try again.");
-        return;
+  const mutation = useMutation({
+    mutationFn: async (payload: BookInsert) => {
+      const { data, error } = await supabase.from("books").insert(payload).select().single();
+      if (error) throw error;
+      return data as Book;
+    },
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ["books", user?.id] });
+      const previous = queryClient.getQueryData<Book[]>(["books", user?.id]);
+      const optimistic: Book = {
+        id: `optimistic-${Date.now()}`,
+        user_id: payload.user_id,
+        title: payload.title,
+        authors: payload.authors ?? [],
+        isbn: payload.isbn ?? null,
+        cover_url: payload.cover_url ?? null,
+        published_year: payload.published_year ?? null,
+        status: payload.status ?? "to_read",
+        notes: payload.notes ?? null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData<Book[]>(["books", user?.id], (old) => [optimistic, ...(old ?? [])]);
+      return { previous };
+    },
+    onError: (err, _payload, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(["books", user?.id], context.previous);
       }
+      logError("add.saveBook", err instanceof Error ? err.message : String(err), err);
+      toast.error("Couldn't save the book. Please try again.");
+    },
+    onSuccess: () => {
       toast.success("Added to your library");
       onSaved();
       if (redirectAfterSave) navigate({ to: "/" });
-    } finally {
-      setSaving(false);
-    }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["books", user?.id] });
+    },
+  });
+
+  const save = () => {
+    if (!user) return;
+    const rawCover = hit.cover_url ?? "";
+    const payload: BookInsert = {
+      user_id: user.id,
+      isbn: hit.isbn ?? null,
+      title: hit.title,
+      authors: hit.authors,
+      cover_url: isValidCoverUrl(rawCover) ? rawCover || null : null,
+      published_year: hit.published_year ?? null,
+    };
+    mutation.mutate(payload);
   };
 
   return (
     <Card className="p-3 flex gap-3">
-      <div className="h-28 w-20 flex-shrink-0 overflow-hidden rounded bg-muted">
+      <div className="h-28 w-20 shrink-0 overflow-hidden rounded bg-muted">
         {hit.cover_url && <img src={hit.cover_url} alt="" className="h-full w-full object-cover" />}
       </div>
       <div className="flex-1 min-w-0 flex flex-col">
@@ -638,8 +698,8 @@ function BookPreview({
             </div>
           )}
           {existingId === null && (
-            <Button onClick={save} disabled={saving} size="sm">
-              {saving ? "Saving…" : "Add to library"}
+            <Button onClick={save} disabled={mutation.isPending} size="sm">
+              {mutation.isPending ? "Saving…" : "Add to library"}
             </Button>
           )}
         </div>
