@@ -155,10 +155,29 @@ function LibrarySearch({
   );
 }
 
+const SORT_STORAGE_KEY = "shelfbooks:sort";
+
+function getSavedSort(): SortKey {
+  try {
+    const saved = localStorage.getItem(SORT_STORAGE_KEY);
+    if (
+      saved === "date_desc" ||
+      saved === "date_asc" ||
+      saved === "title_asc" ||
+      saved === "author_asc"
+    ) {
+      return saved;
+    }
+  } catch {
+    // localStorage unavailable (e.g. SSR or private mode)
+  }
+  return "date_desc";
+}
+
 function Library() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<"all" | Book["status"]>("all");
-  const [sort, setSort] = useState<SortKey>("date_desc");
+  const [sort, setSort] = useState<SortKey>(getSavedSort);
   const [searchOpen, setSearchOpen] = useState(false);
 
   const {
@@ -213,7 +232,18 @@ function Library() {
       {/* Sort control */}
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground shrink-0">Sort by</span>
-        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+        <Select
+          value={sort}
+          onValueChange={(v) => {
+            const key = v as SortKey;
+            setSort(key);
+            try {
+              localStorage.setItem(SORT_STORAGE_KEY, key);
+            } catch {
+              // ignore
+            }
+          }}
+        >
           <SelectTrigger className="h-8 text-xs w-40">
             <SelectValue />
           </SelectTrigger>
