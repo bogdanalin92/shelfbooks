@@ -1,0 +1,2 @@
+ALTER TABLE public.books
+  ADD COLUMN IF NOT EXISTS genres TEXT[] NOT NULL DEFAULT '{}';
