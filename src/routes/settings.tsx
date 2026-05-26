@@ -65,7 +65,10 @@ function GenreRow({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") commitRename();
-    if (e.key === "Escape") { setValue(genre); setEditing(false); }
+    if (e.key === "Escape") {
+      setValue(genre);
+      setEditing(false);
+    }
   };
 
   return (
@@ -79,21 +82,49 @@ function GenreRow({
             onKeyDown={handleKeyDown}
             className="h-7 text-sm flex-1"
           />
-          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={commitRename} disabled={saving}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 shrink-0"
+            onClick={commitRename}
+            disabled={saving}
+          >
             <Check className="h-3.5 w-3.5" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => { setValue(genre); setEditing(false); }}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 shrink-0"
+            onClick={() => {
+              setValue(genre);
+              setEditing(false);
+            }}
+          >
             <X className="h-3.5 w-3.5" />
           </Button>
         </>
       ) : (
         <>
           <span className="flex-1 text-sm truncate">{genre}</span>
-          <Badge variant="secondary" className="text-xs shrink-0">{count}</Badge>
-          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditing(true)} aria-label={`Rename ${genre}`}>
+          <Badge variant="secondary" className="text-xs shrink-0">
+            {count}
+          </Badge>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 shrink-0"
+            onClick={() => setEditing(true)}
+            aria-label={`Rename ${genre}`}
+          >
             <Pencil className="h-3.5 w-3.5" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-destructive hover:text-destructive" onClick={() => onDelete(genre)} aria-label={`Delete ${genre}`}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 shrink-0 text-destructive hover:text-destructive"
+            onClick={() => onDelete(genre)}
+            aria-label={`Delete ${genre}`}
+          >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </>
@@ -113,7 +144,10 @@ function SettingsPage() {
     queryKey: ["books", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase.from("books").select("*").eq("user_id", user!.id);
-      if (error) { logError("settings.fetch", error.message, error); throw error; }
+      if (error) {
+        logError("settings.fetch", error.message, error);
+        throw error;
+      }
       return (data ?? []) as Book[];
     },
     enabled: !!user,
@@ -186,7 +220,8 @@ function SettingsPage() {
           <h2 className="font-medium">Genres</h2>
         </div>
         <p className="text-sm text-muted-foreground">
-          Manage genres across your library. Renaming or deleting a genre updates every book that uses it.
+          Manage genres across your library. Renaming or deleting a genre updates every book that
+          uses it.
         </p>
         <div className="rounded-lg border divide-y">
           {isLoading ? (
@@ -224,11 +259,7 @@ function SettingsPage() {
             <span className="text-sm font-mono truncate max-w-50">{user?.email}</span>
           </div>
           <div className="px-4 py-3">
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => supabase.auth.signOut()}
-            >
+            <Button variant="destructive" size="sm" onClick={() => supabase.auth.signOut()}>
               Sign out
             </Button>
           </div>
@@ -242,13 +273,16 @@ function SettingsPage() {
             <AlertDialogTitle>Delete "{deleteTarget}"?</AlertDialogTitle>
             <AlertDialogDescription>
               This will remove the genre from{" "}
-              <strong>{deleteTarget ? (genreMap.get(deleteTarget) ?? 0) : 0}</strong>{" "}
-              book{(genreMap.get(deleteTarget ?? "") ?? 0) !== 1 ? "s" : ""}. This cannot be undone.
+              <strong>{deleteTarget ? (genreMap.get(deleteTarget) ?? 0) : 0}</strong> book
+              {(genreMap.get(deleteTarget ?? "") ?? 0) !== 1 ? "s" : ""}. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -208,18 +208,10 @@ function BookDetail() {
                     ))}
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={saveGenres}
-                      disabled={selectedGenres.size === 0}
-                    >
+                    <Button size="sm" onClick={saveGenres} disabled={selectedGenres.size === 0}>
                       Add to book
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setSuggestedGenres(null)}
-                    >
+                    <Button size="sm" variant="ghost" onClick={() => setSuggestedGenres(null)}>
                       Dismiss
                     </Button>
                   </div>
@@ -511,7 +503,11 @@ function EditModal({
                     e.preventDefault();
                     const val = genreInput.trim();
                     if (!val && filteredGenres.length === 0) return;
-                    addGenre(filteredGenres.length > 0 && !val ? filteredGenres[0] : val || filteredGenres[0]);
+                    addGenre(
+                      filteredGenres.length > 0 && !val
+                        ? filteredGenres[0]
+                        : val || filteredGenres[0],
+                    );
                   } else if (e.key === "Escape") {
                     setGenreDropdownOpen(false);
                   }
@@ -533,18 +529,21 @@ function EditModal({
                       {g}
                     </button>
                   ))}
-                  {genreInput.trim() && !libraryGenres.map(g => g.toLowerCase()).includes(genreInput.trim().toLowerCase()) && (
-                    <button
-                      type="button"
-                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent text-muted-foreground italic"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        addGenre(genreInput);
-                      }}
-                    >
-                      Add "{genreInput.trim()}"
-                    </button>
-                  )}
+                  {genreInput.trim() &&
+                    !libraryGenres
+                      .map((g) => g.toLowerCase())
+                      .includes(genreInput.trim().toLowerCase()) && (
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent text-muted-foreground italic"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          addGenre(genreInput);
+                        }}
+                      >
+                        Add "{genreInput.trim()}"
+                      </button>
+                    )}
                 </div>
               )}
             </div>

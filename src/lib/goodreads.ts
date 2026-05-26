@@ -39,7 +39,10 @@ function extractGenresFromNextData(html: string): string[] {
     // Walk the entire Apollo cache looking for Genre name entries
     const walk = (obj: unknown) => {
       if (!obj || typeof obj !== "object") return;
-      if (Array.isArray(obj)) { obj.forEach(walk); return; }
+      if (Array.isArray(obj)) {
+        obj.forEach(walk);
+        return;
+      }
       const o = obj as Record<string, unknown>;
       // Pattern: {"__typename":"BookGenre","genre":{"__typename":"Genre","name":"Fiction"}}
       if (o.__typename === "BookGenre" && o.genre && typeof o.genre === "object") {
@@ -217,10 +220,9 @@ export const searchGoodreadsGenres = createServerFn({ method: "POST" })
         }
       }
       // 2. Search by title + first author, then fall back to author alone
-      const queries = [
-        [title, authors[0]].filter(Boolean).join(" "),
-        authors[0] ?? "",
-      ].filter(Boolean);
+      const queries = [[title, authors[0]].filter(Boolean).join(" "), authors[0] ?? ""].filter(
+        Boolean,
+      );
       for (const q of queries) {
         const searchRes = await fetch(
           `https://www.goodreads.com/search?q=${encodeURIComponent(q)}&search_type=books`,

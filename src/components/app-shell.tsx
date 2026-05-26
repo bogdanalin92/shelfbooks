@@ -41,12 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               </Button>
             )}
-            <Button
-              asChild
-              size="icon"
-              variant="ghost"
-              aria-label="Settings"
-            >
+            <Button asChild size="icon" variant="ghost" aria-label="Settings">
               <Link to="/settings">
                 <Settings className="h-4 w-4" />
               </Link>

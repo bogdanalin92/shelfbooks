@@ -287,9 +287,7 @@ function Library() {
           </PopoverTrigger>
           <PopoverContent align="start" className="w-52 p-2">
             {allGenres.length === 0 ? (
-              <p className="text-xs text-muted-foreground px-2 py-1">
-                No genres in library yet
-              </p>
+              <p className="text-xs text-muted-foreground px-2 py-1">No genres in library yet</p>
             ) : (
               <div className="max-h-60 overflow-y-auto space-y-0.5">
                 {allGenres.map((genre) => (
