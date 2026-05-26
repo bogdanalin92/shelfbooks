@@ -36,6 +36,20 @@ const STATUS_LABEL = {
   want_to_buy: "Want to buy",
 } as const;
 
+const STATUS_DOT: Record<Book["status"], string> = {
+  to_read: "bg-blue-500",
+  reading: "bg-amber-500",
+  finished: "bg-emerald-500",
+  want_to_buy: "bg-violet-500",
+};
+
+const STATUS_BADGE_CLS: Record<Book["status"], string> = {
+  to_read: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  reading: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  finished: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+  want_to_buy: "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300",
+};
+
 const FILTERS: { id: "all" | Book["status"]; label: string }[] = [
   { id: "all", label: "All" },
   { id: "to_read", label: "To read" },
@@ -205,6 +219,12 @@ function Library() {
 
   const resolvedBooks = useMemo(() => books ?? [], [books]);
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: resolvedBooks.length };
+    for (const b of resolvedBooks) counts[b.status] = (counts[b.status] ?? 0) + 1;
+    return counts;
+  }, [resolvedBooks]);
+
   const allGenres = useMemo(
     () => [...new Set(resolvedBooks.flatMap((b) => b.genres ?? []))].sort(),
     [resolvedBooks],
@@ -225,26 +245,41 @@ function Library() {
   return (
     <div className="space-y-4">
       {/* Filter pills + search */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {FILTERS.map((f) => (
-          <Button
+          <button
             key={f.id}
-            size="sm"
-            variant={filter === f.id ? "default" : "outline"}
             onClick={() => setFilter(f.id)}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+              filter === f.id
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-muted text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            }`}
           >
+            {f.id !== "all" && (
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[f.id as Book["status"]]}`} />
+            )}
             {f.label}
-          </Button>
+            {statusCounts[f.id] !== undefined && (
+              <span
+                className={`rounded-full px-1.5 py-px text-[10px] font-semibold ${
+                  filter === f.id
+                    ? "bg-white/20 text-primary-foreground"
+                    : "bg-background text-muted-foreground"
+                }`}
+              >
+                {statusCounts[f.id]}
+              </span>
+            )}
+          </button>
         ))}
-        <Button
-          size="sm"
-          variant="outline"
-          className="ml-auto shrink-0"
+        <button
+          className="ml-auto shrink-0 inline-flex items-center justify-center rounded-full bg-muted p-2 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-colors"
           onClick={() => setSearchOpen(true)}
           aria-label="Search library"
         >
           <Search className="h-4 w-4" />
-        </Button>
+        </button>
       </div>
 
       {/* Sort + Genre filter row */}
@@ -361,32 +396,40 @@ function Library() {
           )}
         </Card>
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {filtered.map((b) => (
             <li key={b.id}>
-              <Link to="/book/$id" params={{ id: b.id }} className="block group">
-                <div className="aspect-2/3 overflow-hidden rounded-md bg-muted">
-                  {b.cover_url ? (
-                    <img
-                      src={b.cover_url}
-                      alt={b.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-muted-foreground p-2 text-center">
-                      {b.title}
+              <Link to="/book/$id" params={{ id: b.id }} className="block group h-full">
+                <div className="h-full flex flex-col rounded-2xl bg-card shadow-sm group-hover:shadow-lg transition-shadow duration-200 overflow-hidden">
+                  {/* Cover */}
+                  <div className="relative overflow-hidden bg-muted">
+                    <div className="aspect-2/3">
+                      {b.cover_url ? (
+                        <img
+                          src={b.cover_url}
+                          alt={b.title}
+                          loading="lazy"
+                          className="h-full w-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="flex h-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted to-muted/60 p-3 text-center">
+                          <BookOpen className="h-8 w-8 text-muted-foreground/30" />
+                          <span className="text-xs text-muted-foreground line-clamp-3 leading-tight">{b.title}</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="mt-2 space-y-0.5">
-                  <p className="text-sm font-medium line-clamp-2">{b.title}</p>
-                  {b.authors[0] && (
-                    <p className="text-xs text-muted-foreground line-clamp-1">{b.authors[0]}</p>
-                  )}
-                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {STATUS_LABEL[b.status]}
-                  </p>
+                    <div className={`absolute bottom-0 left-0 right-0 h-1.5 ${STATUS_DOT[b.status]}`} />
+                  </div>
+                  {/* Content */}
+                  <div className="flex flex-col gap-1.5 p-3 flex-1">
+                    <p className="text-xs font-bold uppercase tracking-wide line-clamp-2 leading-snug">{b.title}</p>
+                    {b.authors[0] && (
+                      <p className="text-xs text-muted-foreground line-clamp-1">{b.authors[0]}</p>
+                    )}
+                    <span className={`mt-auto inline-block self-start rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE_CLS[b.status]}`}>
+                      {STATUS_LABEL[b.status]}
+                    </span>
+                  </div>
                 </div>
               </Link>
             </li>

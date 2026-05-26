@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
-import { Trash2, ArrowLeft, Pencil, Loader2, Sparkles, X } from "lucide-react";
+import { Trash2, ArrowLeft, Pencil, Loader2, Sparkles, X, BookOpen } from "lucide-react";
 import { fetchGenresForBook } from "@/lib/openlibrary";
 import { logError } from "@/lib/logger";
 import { isValidCoverUrl } from "@/lib/utils";
@@ -153,132 +153,162 @@ function BookDetail() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Back */}
       <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Back
       </Button>
 
-      <Card className="p-4 flex gap-4">
-        <div className="h-44 w-32 shrink-0 overflow-hidden rounded bg-muted">
-          {book.cover_url && (
-            <img src={book.cover_url} alt={book.title} className="h-full w-full object-cover" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0 space-y-1">
-          <h1 className="text-xl font-bold leading-tight">{book.title}</h1>
-          {book.authors.length > 0 && (
-            <p className="text-sm text-muted-foreground">{book.authors.join(", ")}</p>
-          )}
-          {book.published_year && (
-            <p className="text-xs text-muted-foreground">{book.published_year}</p>
-          )}
-          {book.isbn && <p className="text-xs text-muted-foreground">ISBN {book.isbn}</p>}
-
-          {/* Genres — show pills if present, suggestion UI if empty */}
-          {(book.genres ?? []).length > 0 ? (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {(book.genres ?? []).map((g) => (
-                <span
-                  key={g}
-                  className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                >
-                  {g}
-                </span>
-              ))}
-            </div>
-          ) : suggestedGenres !== null ? (
-            <div className="pt-1 space-y-2">
-              {suggestedGenres.length > 0 ? (
-                <>
-                  <p className="text-xs text-muted-foreground">Select genres to add:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {suggestedGenres.map((g) => (
-                      <button
-                        key={g}
-                        type="button"
-                        onClick={() => toggleGenre(g)}
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs transition-colors cursor-pointer ${
-                          selectedGenres.has(g)
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {g}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={saveGenres} disabled={selectedGenres.size === 0}>
-                      Add to book
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setSuggestedGenres(null)}>
-                      Dismiss
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground">No genres found.</p>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-6 text-xs"
-                    onClick={() => setSuggestedGenres(null)}
-                  >
-                    Dismiss
-                  </Button>
-                </div>
-              )}
-            </div>
+      {/* Hero: cover thumbnail left, title + status right */}
+      <div className="flex gap-4 items-start">
+        {/* Cover thumbnail */}
+        <div className="w-28 shrink-0 rounded-xl overflow-hidden bg-muted/50 shadow-md aspect-2/3">
+          {book.cover_url ? (
+            <img src={book.cover_url} alt={book.title} className="w-full h-full object-cover" />
           ) : (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-1 h-7 px-2 text-xs text-muted-foreground"
-              onClick={fetchGenres}
-              disabled={fetchingGenres}
-            >
-              {fetchingGenres ? (
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-              ) : (
-                <Sparkles className="h-3 w-3 mr-1" />
-              )}
-              Suggest genres
-            </Button>
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              <BookOpen className="h-8 w-8 opacity-30" />
+            </div>
           )}
-
-          <Button size="sm" variant="outline" className="mt-2" onClick={() => setEditOpen(true)}>
-            <Pencil className="h-3 w-3 mr-1" /> Edit details
-          </Button>
         </div>
-      </Card>
 
-      <Card className="p-4 space-y-2">
-        <p className="text-sm font-medium">Reading status</p>
-        <Select value={book.status} onValueChange={(v) => updateStatus(v as Status)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="to_read">To read</SelectItem>
-            <SelectItem value="reading">Reading</SelectItem>
-            <SelectItem value="finished">Finished</SelectItem>
-            <SelectItem value="want_to_buy">Want to buy</SelectItem>
-          </SelectContent>
-        </Select>
-      </Card>
+        {/* Title, meta + status */}
+        <div className="flex-1 min-w-0 space-y-3">
+          <div className="space-y-0.5">
+            <h1 className="text-xl font-bold leading-tight">{book.title}</h1>
+            {book.authors.length > 0 && (
+              <p className="text-sm text-muted-foreground">{book.authors.join(", ")}</p>
+            )}
+            {(book.published_year || book.isbn) && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {book.published_year && <span>{book.published_year}</span>}
+                {book.isbn && <span>ISBN {book.isbn}</span>}
+              </div>
+            )}
+          </div>
 
-      {/* Notes section */}
+          {/* Status buttons — 2×2 grid */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {(
+              [
+                { value: "to_read", label: "To read", dot: "bg-blue-500", active: "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-300" },
+                { value: "reading", label: "Reading", dot: "bg-amber-500", active: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300" },
+                { value: "finished", label: "Finished", dot: "bg-emerald-500", active: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" },
+                { value: "want_to_buy", label: "Want to buy", dot: "bg-violet-500", active: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/50 dark:text-violet-300" },
+              ] as const
+            ).map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => updateStatus(s.value)}
+                className={`flex items-center gap-1.5 rounded-lg border px-2 py-2 text-xs font-medium text-left transition-colors ${
+                  book.status === s.value
+                    ? s.active
+                    : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${s.dot}`} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Genres */}
+      {(book.genres ?? []).length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {(book.genres ?? []).map((g) => (
+            <span
+              key={g}
+              className="inline-block rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground"
+            >
+              {g}
+            </span>
+          ))}
+        </div>
+      ) : suggestedGenres !== null ? (
+        <div className="space-y-2">
+          {suggestedGenres.length > 0 ? (
+            <>
+              <p className="text-xs text-muted-foreground">Select genres to add:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestedGenres.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => toggleGenre(g)}
+                    className={`inline-block rounded-full px-2.5 py-1 text-xs transition-colors cursor-pointer ${
+                      selectedGenres.has(g)
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={saveGenres} disabled={selectedGenres.size === 0}>
+                  Add to book
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSuggestedGenres(null)}>
+                  Dismiss
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">No genres found.</p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-xs"
+                onClick={() => setSuggestedGenres(null)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-xs text-muted-foreground"
+          onClick={fetchGenres}
+          disabled={fetchingGenres}
+        >
+          {fetchingGenres ? (
+            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+          ) : (
+            <Sparkles className="h-3 w-3 mr-1" />
+          )}
+          Suggest genres
+        </Button>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <Button variant="outline" className="flex-1" onClick={() => setEditOpen(true)}>
+          <Pencil className="h-4 w-4 mr-2" /> Edit details
+        </Button>
+        <Button
+          variant="ghost"
+          className="flex-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={() => setRemoveOpen(true)}
+        >
+          <Trash2 className="h-4 w-4 mr-2" /> Remove
+        </Button>
+      </div>
+
+      {/* Notes */}
       {book.notes && (
         <Card className="p-4 space-y-1">
           <p className="text-sm font-medium">Notes</p>
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{book.notes}</p>
         </Card>
       )}
-
-      <Button variant="destructive" onClick={() => setRemoveOpen(true)} className="w-full">
-        <Trash2 className="h-4 w-4 mr-1" /> Remove from library
-      </Button>
 
       <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
         <AlertDialogContent>
@@ -475,9 +505,10 @@ function EditModal({
                 {genreList.map((g) => (
                   <span
                     key={g}
-                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs"
+                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs max-w-48"
+                    title={g}
                   >
-                    {g}
+                    <span className="truncate">{g}</span>
                     <button
                       type="button"
                       onClick={() => removeGenre(g)}
@@ -520,7 +551,7 @@ function EditModal({
                     <button
                       key={g}
                       type="button"
-                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent truncate"
                       onMouseDown={(e) => {
                         e.preventDefault();
                         addGenre(g);
