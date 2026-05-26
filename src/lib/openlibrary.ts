@@ -193,3 +193,46 @@ export async function searchBooks(q: string, limit = 20): Promise<BookHit[]> {
 
   return merged.slice(0, limit);
 }
+
+/**
+ * Fetches genre suggestions for an existing book.
+ * Tries Open Library / Google Books first, then Goodreads (server-side).
+ * Returns an empty array on failure.
+ */
+export async function fetchGenresForBook(
+  isbn: string | null,
+  title: string,
+  authors: string[],
+): Promise<string[]> {
+  try {
+    // 1. ISBN lookup via Open Library / Google Books
+    if (isbn) {
+      const hit = await lookupByIsbn(isbn);
+      if (hit?.genres.length) return hit.genres;
+    }
+    // 2. Title + author search
+    const q = [title, authors[0]].filter(Boolean).join(" ");
+    const results = await searchBooks(q, 5);
+    const first = results.find((r) => r.genres.length > 0);
+    if (first) return first.genres;
+    // 3. Author-only search (catches translated titles)
+    if (authors[0]) {
+      const byAuthor = await searchBooks(authors[0], 5);
+      const authorHit = byAuthor.find((r) => r.genres.length > 0);
+      if (authorHit) return authorHit.genres;
+    }
+  } catch {
+    // noop
+  }
+
+  // 4. Goodreads fallback (server-side to avoid CORS)
+  try {
+    const { searchGoodreadsGenres } = await import("@/lib/goodreads");
+    const genres = await searchGoodreadsGenres({ data: { isbn, title, authors } });
+    if (genres.length) return genres;
+  } catch {
+    // noop
+  }
+
+  return [];
+}

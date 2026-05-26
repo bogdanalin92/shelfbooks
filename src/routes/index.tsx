@@ -17,7 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BookOpen, Plus, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BookOpen, ChevronDown, Plus, Search, X } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/")({
@@ -31,6 +33,7 @@ const STATUS_LABEL = {
   to_read: "To read",
   reading: "Reading",
   finished: "Finished",
+  want_to_buy: "Want to buy",
 } as const;
 
 const FILTERS: { id: "all" | Book["status"]; label: string }[] = [
@@ -38,6 +41,7 @@ const FILTERS: { id: "all" | Book["status"]; label: string }[] = [
   { id: "to_read", label: "To read" },
   { id: "reading", label: "Reading" },
   { id: "finished", label: "Finished" },
+  { id: "want_to_buy", label: "Want to buy" },
 ];
 
 function sortBooks(books: Book[], sort: SortKey): Book[] {
@@ -179,6 +183,7 @@ function Library() {
   const { user } = useAuth();
   const [filter, setFilter] = useState<"all" | Book["status"]>("all");
   const [sort, setSort] = useState<SortKey>(getSavedSort);
+  const [genreFilter, setGenreFilter] = useState<Set<string>>(new Set());
   const [searchOpen, setSearchOpen] = useState(false);
 
   const {
@@ -200,10 +205,22 @@ function Library() {
 
   const resolvedBooks = useMemo(() => books ?? [], [books]);
 
+  const allGenres = useMemo(
+    () => [...new Set(resolvedBooks.flatMap((b) => b.genres ?? []))].sort(),
+    [resolvedBooks],
+  );
+
   const filtered = useMemo(() => {
-    const base = resolvedBooks.filter((b) => filter === "all" || b.status === filter);
+    const base = resolvedBooks.filter((b) => {
+      if (filter !== "all" && b.status !== filter) return false;
+      if (genreFilter.size > 0) {
+        const bookGenres = b.genres ?? [];
+        if (!Array.from(genreFilter).some((g) => bookGenres.includes(g))) return false;
+      }
+      return true;
+    });
     return sortBooks(base, sort);
-  }, [resolvedBooks, filter, sort]);
+  }, [resolvedBooks, filter, sort, genreFilter]);
 
   return (
     <div className="space-y-4">
@@ -230,8 +247,8 @@ function Library() {
         </Button>
       </div>
 
-      {/* Sort control */}
-      <div className="flex items-center gap-2">
+      {/* Sort + Genre filter row */}
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground shrink-0">Sort by</span>
         <Select
           value={sort}
@@ -255,6 +272,57 @@ function Library() {
             <SelectItem value="author_asc">Author A → Z</SelectItem>
           </SelectContent>
         </Select>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={genreFilter.size > 0 ? "default" : "outline"}
+              className="h-8 text-xs gap-1 px-3"
+            >
+              {genreFilter.size > 0
+                ? `${genreFilter.size} genre${genreFilter.size > 1 ? "s" : ""}`
+                : "Genre"}
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-52 p-2">
+            {allGenres.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-2 py-1">
+                No genres in library yet
+              </p>
+            ) : (
+              <div className="max-h-60 overflow-y-auto space-y-0.5">
+                {allGenres.map((genre) => (
+                  <label
+                    key={genre}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm select-none"
+                  >
+                    <Checkbox
+                      checked={genreFilter.has(genre)}
+                      onCheckedChange={(checked) => {
+                        setGenreFilter((prev) => {
+                          const next = new Set(prev);
+                          if (checked) next.add(genre);
+                          else next.delete(genre);
+                          return next;
+                        });
+                      }}
+                    />
+                    <span className="line-clamp-1">{genre}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {genreFilter.size > 0 && (
+              <button
+                onClick={() => setGenreFilter(new Set())}
+                className="flex items-center gap-1 mt-1 w-full px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
+              >
+                <X className="h-3 w-3" /> Clear selection
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
       <LibrarySearch books={resolvedBooks} open={searchOpen} onClose={() => setSearchOpen(false)} />

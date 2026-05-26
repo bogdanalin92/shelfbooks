@@ -3,7 +3,7 @@ import { useEffect, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { BookOpen, LogOut, Plus } from "lucide-react";
+import { BookOpen, LogOut, Plus, Settings } from "lucide-react";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -41,6 +41,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               </Button>
             )}
+            <Button
+              asChild
+              size="icon"
+              variant="ghost"
+              aria-label="Settings"
+            >
+              <Link to="/settings">
+                <Settings className="h-4 w-4" />
+              </Link>
+            </Button>
             <Button
               size="icon"
               variant="ghost"

@@ -34,7 +34,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
-import { Trash2, ArrowLeft, Pencil, Loader2 } from "lucide-react";
+import { Trash2, ArrowLeft, Pencil, Loader2, Sparkles, X } from "lucide-react";
+import { fetchGenresForBook } from "@/lib/openlibrary";
 import { logError } from "@/lib/logger";
 import { isValidCoverUrl } from "@/lib/utils";
 
@@ -57,6 +58,9 @@ function BookDetail() {
   const [fetchError, setFetchError] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [fetchingGenres, setFetchingGenres] = useState(false);
+  const [suggestedGenres, setSuggestedGenres] = useState<string[] | null>(null);
+  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +102,41 @@ function BookDetail() {
     toast.success("Updated");
   };
 
+  const fetchGenres = async () => {
+    setFetchingGenres(true);
+    const genres = await fetchGenresForBook(book.isbn, book.title, book.authors);
+    setFetchingGenres(false);
+    setSuggestedGenres(genres);
+    setSelectedGenres(new Set(genres));
+    if (genres.length === 0) toast.info("No genres found for this book.");
+  };
+
+  const toggleGenre = (g: string) => {
+    setSelectedGenres((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
+      return next;
+    });
+  };
+
+  const saveGenres = async () => {
+    const genres = Array.from(selectedGenres);
+    const { error } = await supabase
+      .from("books")
+      .update({ genres })
+      .eq("id", book.id)
+      .eq("user_id", book.user_id);
+    if (error) {
+      logError("book.saveGenres", error.message, error);
+      return toast.error("Couldn't save genres. Please try again.");
+    }
+    setBook({ ...book, genres });
+    setSuggestedGenres(null);
+    setSelectedGenres(new Set());
+    toast.success("Genres saved");
+  };
+
   const remove = async () => {
     if (!user) return;
     const { error } = await supabase
@@ -134,7 +173,9 @@ function BookDetail() {
             <p className="text-xs text-muted-foreground">{book.published_year}</p>
           )}
           {book.isbn && <p className="text-xs text-muted-foreground">ISBN {book.isbn}</p>}
-          {(book.genres ?? []).length > 0 && (
+
+          {/* Genres — show pills if present, suggestion UI if empty */}
+          {(book.genres ?? []).length > 0 ? (
             <div className="flex flex-wrap gap-1 pt-1">
               {(book.genres ?? []).map((g) => (
                 <span
@@ -145,7 +186,75 @@ function BookDetail() {
                 </span>
               ))}
             </div>
+          ) : suggestedGenres !== null ? (
+            <div className="pt-1 space-y-2">
+              {suggestedGenres.length > 0 ? (
+                <>
+                  <p className="text-xs text-muted-foreground">Select genres to add:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {suggestedGenres.map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => toggleGenre(g)}
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs transition-colors cursor-pointer ${
+                          selectedGenres.has(g)
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={saveGenres}
+                      disabled={selectedGenres.size === 0}
+                    >
+                      Add to book
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setSuggestedGenres(null)}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">No genres found.</p>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 text-xs"
+                    onClick={() => setSuggestedGenres(null)}
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="mt-1 h-7 px-2 text-xs text-muted-foreground"
+              onClick={fetchGenres}
+              disabled={fetchingGenres}
+            >
+              {fetchingGenres ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3 mr-1" />
+              )}
+              Suggest genres
+            </Button>
           )}
+
           <Button size="sm" variant="outline" className="mt-2" onClick={() => setEditOpen(true)}>
             <Pencil className="h-3 w-3 mr-1" /> Edit details
           </Button>
@@ -162,6 +271,7 @@ function BookDetail() {
             <SelectItem value="to_read">To read</SelectItem>
             <SelectItem value="reading">Reading</SelectItem>
             <SelectItem value="finished">Finished</SelectItem>
+            <SelectItem value="want_to_buy">Want to buy</SelectItem>
           </SelectContent>
         </Select>
       </Card>
@@ -227,10 +337,25 @@ function EditModal({
   const [isbn, setIsbn] = useState(book.isbn ?? "");
   const [year, setYear] = useState(book.published_year?.toString() ?? "");
   const [coverUrl, setCoverUrl] = useState(book.cover_url ?? "");
-  const [genres, setGenres] = useState((book.genres ?? []).join(", "));
+  const [genreList, setGenreList] = useState<string[]>(book.genres ?? []);
+  const [genreInput, setGenreInput] = useState("");
+  const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
+  const [libraryGenres, setLibraryGenres] = useState<string[]>([]);
   const [status, setStatus] = useState<Status>(book.status);
   const [notes, setNotes] = useState(book.notes ?? "");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("books")
+      .select("genres")
+      .then(({ data }) => {
+        if (data) {
+          const all = [...new Set(data.flatMap((b) => b.genres ?? []))].sort();
+          setLibraryGenres(all);
+        }
+      });
+  }, []);
 
   useEffect(() => {
     setTitle(book.title);
@@ -238,10 +363,27 @@ function EditModal({
     setIsbn(book.isbn ?? "");
     setYear(book.published_year?.toString() ?? "");
     setCoverUrl(book.cover_url ?? "");
-    setGenres((book.genres ?? []).join(", "));
+    setGenreList(book.genres ?? []);
+    setGenreInput("");
     setStatus(book.status);
     setNotes(book.notes ?? "");
   }, [book]);
+
+  const filteredGenres = libraryGenres.filter(
+    (g) => !genreList.includes(g) && g.toLowerCase().includes(genreInput.toLowerCase()),
+  );
+
+  const addGenre = (g: string) => {
+    const trimmed = g.trim();
+    if (trimmed && !genreList.includes(trimmed)) {
+      setGenreList((prev) => [...prev, trimmed]);
+    }
+    setGenreInput("");
+  };
+
+  const removeGenre = (g: string) => {
+    setGenreList((prev) => prev.filter((x) => x !== g));
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -261,10 +403,7 @@ function EditModal({
       isbn: isbn.trim() || null,
       published_year: year ? parseInt(year) || null : null,
       cover_url: cleanCoverUrl || null,
-      genres: genres
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      genres: genreList,
       status,
       notes: notes.trim() || null,
     };
@@ -338,15 +477,77 @@ function EditModal({
             />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="e-genres">
-              Genres <span className="text-muted-foreground text-xs">(comma-separated)</span>
-            </Label>
-            <Input
-              id="e-genres"
-              value={genres}
-              onChange={(e) => setGenres(e.target.value)}
-              placeholder="Fiction, Fantasy, Adventure"
-            />
+            <Label>Genres</Label>
+            {genreList.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {genreList.map((g) => (
+                  <span
+                    key={g}
+                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 text-primary px-2 py-0.5 text-xs"
+                  >
+                    {g}
+                    <button
+                      type="button"
+                      onClick={() => removeGenre(g)}
+                      className="hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="relative">
+              <Input
+                value={genreInput}
+                onChange={(e) => {
+                  setGenreInput(e.target.value);
+                  setGenreDropdownOpen(true);
+                }}
+                onFocus={() => setGenreDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setGenreDropdownOpen(false), 150)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    const val = genreInput.trim();
+                    if (!val && filteredGenres.length === 0) return;
+                    addGenre(filteredGenres.length > 0 && !val ? filteredGenres[0] : val || filteredGenres[0]);
+                  } else if (e.key === "Escape") {
+                    setGenreDropdownOpen(false);
+                  }
+                }}
+                placeholder="Search or type a genre…"
+              />
+              {genreDropdownOpen && (filteredGenres.length > 0 || genreInput.trim()) && (
+                <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-40 overflow-auto">
+                  {filteredGenres.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        addGenre(g);
+                      }}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                  {genreInput.trim() && !libraryGenres.map(g => g.toLowerCase()).includes(genreInput.trim().toLowerCase()) && (
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent text-muted-foreground italic"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        addGenre(genreInput);
+                      }}
+                    >
+                      Add "{genreInput.trim()}"
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="space-y-1">
             <Label>Reading status</Label>
@@ -358,6 +559,7 @@ function EditModal({
                 <SelectItem value="to_read">To read</SelectItem>
                 <SelectItem value="reading">Reading</SelectItem>
                 <SelectItem value="finished">Finished</SelectItem>
+                <SelectItem value="want_to_buy">Want to buy</SelectItem>
               </SelectContent>
             </Select>
           </div>
