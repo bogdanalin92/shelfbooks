@@ -257,7 +257,9 @@ function Library() {
             }`}
           >
             {f.id !== "all" && (
-              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[f.id as Book["status"]]}`} />
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[f.id as Book["status"]]}`}
+              />
             )}
             {f.label}
             {statusCounts[f.id] !== undefined && (
@@ -414,19 +416,27 @@ function Library() {
                       ) : (
                         <div className="flex h-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted to-muted/60 p-3 text-center">
                           <BookOpen className="h-8 w-8 text-muted-foreground/30" />
-                          <span className="text-xs text-muted-foreground line-clamp-3 leading-tight">{b.title}</span>
+                          <span className="text-xs text-muted-foreground line-clamp-3 leading-tight">
+                            {b.title}
+                          </span>
                         </div>
                       )}
                     </div>
-                    <div className={`absolute bottom-0 left-0 right-0 h-1.5 ${STATUS_DOT[b.status]}`} />
+                    <div
+                      className={`absolute bottom-0 left-0 right-0 h-1.5 ${STATUS_DOT[b.status]}`}
+                    />
                   </div>
                   {/* Content */}
                   <div className="flex flex-col gap-1.5 p-3 flex-1">
-                    <p className="text-xs font-bold uppercase tracking-wide line-clamp-2 leading-snug">{b.title}</p>
+                    <p className="text-xs font-bold uppercase tracking-wide line-clamp-2 leading-snug">
+                      {b.title}
+                    </p>
                     {b.authors[0] && (
                       <p className="text-xs text-muted-foreground line-clamp-1">{b.authors[0]}</p>
                     )}
-                    <span className={`mt-auto inline-block self-start rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE_CLS[b.status]}`}>
+                    <span
+                      className={`mt-auto inline-block self-start rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_BADGE_CLS[b.status]}`}
+                    >
                       {STATUS_LABEL[b.status]}
                     </span>
                   </div>

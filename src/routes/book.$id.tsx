@@ -191,10 +191,34 @@ function BookDetail() {
           <div className="grid grid-cols-2 gap-1.5">
             {(
               [
-                { value: "to_read", label: "To read", dot: "bg-blue-500", active: "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-300" },
-                { value: "reading", label: "Reading", dot: "bg-amber-500", active: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300" },
-                { value: "finished", label: "Finished", dot: "bg-emerald-500", active: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" },
-                { value: "want_to_buy", label: "Want to buy", dot: "bg-violet-500", active: "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/50 dark:text-violet-300" },
+                {
+                  value: "to_read",
+                  label: "To read",
+                  dot: "bg-blue-500",
+                  active:
+                    "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-300",
+                },
+                {
+                  value: "reading",
+                  label: "Reading",
+                  dot: "bg-amber-500",
+                  active:
+                    "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300",
+                },
+                {
+                  value: "finished",
+                  label: "Finished",
+                  dot: "bg-emerald-500",
+                  active:
+                    "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
+                },
+                {
+                  value: "want_to_buy",
+                  label: "Want to buy",
+                  dot: "bg-violet-500",
+                  active:
+                    "border-violet-300 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-950/50 dark:text-violet-300",
+                },
               ] as const
             ).map((s) => (
               <button
