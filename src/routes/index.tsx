@@ -83,7 +83,8 @@ function LibrarySearch({
       (b) =>
         b.title.toLowerCase().includes(q) ||
         (b.isbn ?? "").toLowerCase().includes(q) ||
-        b.authors.some((a) => a.toLowerCase().includes(q)),
+        b.authors.some((a) => a.toLowerCase().includes(q)) ||
+        b.genres.some((g) => g.toLowerCase().includes(q)),
     );
   }, [query, books]);
 

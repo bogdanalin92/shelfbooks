@@ -4,6 +4,7 @@ export type BookHit = {
   authors: string[];
   cover_url: string | null;
   published_year: number | null;
+  genres: string[];
 };
 
 interface GoogleBooksItem {
@@ -13,6 +14,7 @@ interface GoogleBooksItem {
     publishedDate?: string;
     imageLinks?: { thumbnail?: string; smallThumbnail?: string };
     industryIdentifiers?: Array<{ type: string; identifier: string }>;
+    categories?: string[];
   };
 }
 
@@ -26,6 +28,7 @@ interface OpenLibraryDoc {
   author_name?: string[];
   cover_i?: number;
   first_publish_year?: number;
+  subject?: string[];
 }
 
 const coverUrl = (id: number | string | null | undefined, size: "S" | "M" | "L" = "M") =>
@@ -50,6 +53,7 @@ async function lookupGoogleBooks(isbn: string): Promise<BookHit | null> {
       published_year: v.publishedDate
         ? parseInt(String(v.publishedDate).match(/\d{4}/)?.[0] ?? "") || null
         : null,
+      genres: v.categories?.slice(0, 5) ?? [],
     };
   } catch {
     return null;
@@ -90,6 +94,7 @@ export async function lookupByIsbn(isbn: string): Promise<BookHit | null> {
     published_year: data.publish_date
       ? parseInt(String(data.publish_date).match(/\d{4}/)?.[0] ?? "") || null
       : null,
+    genres: Array.isArray(data.subjects) ? (data.subjects as string[]).slice(0, 5) : [],
   };
 }
 
@@ -105,6 +110,7 @@ async function searchOne(q: string): Promise<BookHit | null> {
     authors: d.author_name ?? [],
     cover_url: d.cover_i ? coverUrl(d.cover_i) : d.isbn?.[0] ? coverByIsbn(d.isbn[0]) : null,
     published_year: d.first_publish_year ?? null,
+    genres: d.subject?.slice(0, 5) ?? [],
   };
 }
 
@@ -130,6 +136,7 @@ async function searchGoogleBooks(q: string, limit = 20): Promise<BookHit[]> {
         published_year: v.publishedDate
           ? parseInt(String(v.publishedDate).match(/\d{4}/)?.[0] ?? "") || null
           : null,
+        genres: v.categories?.slice(0, 5) ?? [],
       } as BookHit;
     });
   } catch {
@@ -156,6 +163,7 @@ export async function searchBooks(q: string, limit = 20): Promise<BookHit[]> {
                   ? coverByIsbn(d.isbn[0])
                   : null,
               published_year: d.first_publish_year ?? null,
+              genres: d.subject?.slice(0, 5) ?? [],
             }) as BookHit,
         ),
       )

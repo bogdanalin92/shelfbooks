@@ -134,6 +134,18 @@ function BookDetail() {
             <p className="text-xs text-muted-foreground">{book.published_year}</p>
           )}
           {book.isbn && <p className="text-xs text-muted-foreground">ISBN {book.isbn}</p>}
+          {book.genres.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {book.genres.map((g) => (
+                <span
+                  key={g}
+                  className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          )}
           <Button size="sm" variant="outline" className="mt-2" onClick={() => setEditOpen(true)}>
             <Pencil className="h-3 w-3 mr-1" /> Edit details
           </Button>
@@ -215,6 +227,7 @@ function EditModal({
   const [isbn, setIsbn] = useState(book.isbn ?? "");
   const [year, setYear] = useState(book.published_year?.toString() ?? "");
   const [coverUrl, setCoverUrl] = useState(book.cover_url ?? "");
+  const [genres, setGenres] = useState(book.genres.join(", "));
   const [status, setStatus] = useState<Status>(book.status);
   const [notes, setNotes] = useState(book.notes ?? "");
   const [saving, setSaving] = useState(false);
@@ -225,6 +238,7 @@ function EditModal({
     setIsbn(book.isbn ?? "");
     setYear(book.published_year?.toString() ?? "");
     setCoverUrl(book.cover_url ?? "");
+    setGenres(book.genres.join(", "));
     setStatus(book.status);
     setNotes(book.notes ?? "");
   }, [book]);
@@ -247,6 +261,10 @@ function EditModal({
       isbn: isbn.trim() || null,
       published_year: year ? parseInt(year) || null : null,
       cover_url: cleanCoverUrl || null,
+      genres: genres
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
       status,
       notes: notes.trim() || null,
     };
@@ -317,6 +335,17 @@ function EditModal({
               value={coverUrl}
               onChange={(e) => setCoverUrl(e.target.value)}
               placeholder="https://…"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="e-genres">
+              Genres <span className="text-muted-foreground text-xs">(comma-separated)</span>
+            </Label>
+            <Input
+              id="e-genres"
+              value={genres}
+              onChange={(e) => setGenres(e.target.value)}
+              placeholder="Fiction, Fantasy, Adventure"
             />
           </div>
           <div className="space-y-1">

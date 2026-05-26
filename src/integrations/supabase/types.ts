@@ -13,6 +13,7 @@ export type Database = {
           authors: string[];
           cover_url: string | null;
           created_at: string;
+          genres: string[];
           id: string;
           isbn: string | null;
           notes: string | null;
@@ -26,6 +27,7 @@ export type Database = {
           authors?: string[];
           cover_url?: string | null;
           created_at?: string;
+          genres?: string[];
           id?: string;
           isbn?: string | null;
           notes?: string | null;
@@ -39,6 +41,7 @@ export type Database = {
           authors?: string[];
           cover_url?: string | null;
           created_at?: string;
+          genres?: string[];
           id?: string;
           isbn?: string | null;
           notes?: string | null;

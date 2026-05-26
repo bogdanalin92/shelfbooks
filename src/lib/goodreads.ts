@@ -67,12 +67,17 @@ function parseGoodreadsHtml(html: string): BookHit {
       (ld.datePublished as string | null | undefined) ??
       (ld.copyrightYear as string | null | undefined) ??
       null;
+    const rawGenre = ld.genre as string | string[] | null | undefined;
+    const genres: string[] = rawGenre
+      ? (Array.isArray(rawGenre) ? rawGenre : [rawGenre]).filter(Boolean).slice(0, 5)
+      : [];
     return {
       isbn,
       title: (ld.name as string | undefined) ?? (ld.title as string | undefined) ?? "Untitled",
       authors,
       cover_url: cover,
       published_year: yearStr ? parseInt(String(yearStr).match(/\d{4}/)?.[0] ?? "") || null : null,
+      genres,
     };
   }
 
@@ -90,6 +95,7 @@ function parseGoodreadsHtml(html: string): BookHit {
     authors,
     cover_url: cover ?? null,
     published_year: null,
+    genres: [],
   };
 }
 

@@ -119,7 +119,7 @@ function ScanTab() {
             if (user) {
               const { data: own } = await supabase
                 .from("books")
-                .select("isbn, title, authors, cover_url, published_year")
+                .select("isbn, title, authors, cover_url, published_year, genres")
                 .eq("user_id", user.id)
                 .eq("isbn", text)
                 .maybeSingle();
@@ -130,6 +130,7 @@ function ScanTab() {
                   authors: own.authors,
                   cover_url: own.cover_url,
                   published_year: own.published_year,
+                  genres: own.genres,
                 });
                 return;
               }
@@ -444,7 +445,7 @@ function ManualTab() {
       if (user) {
         const { data: own } = await supabase
           .from("books")
-          .select("isbn, title, authors, cover_url, published_year")
+          .select("isbn, title, authors, cover_url, published_year, genres")
           .eq("user_id", user.id)
           .eq("isbn", cleanIsbn)
           .maybeSingle();
@@ -455,6 +456,7 @@ function ManualTab() {
             authors: own.authors,
             cover_url: own.cover_url,
             published_year: own.published_year,
+            genres: own.genres,
           });
           return;
         }
@@ -534,6 +536,7 @@ function ManualEntry({
         .filter(Boolean),
       cover_url: cleanCoverUrl || null,
       published_year: year ? parseInt(year) || null : null,
+      genres: [],
     });
   };
 
