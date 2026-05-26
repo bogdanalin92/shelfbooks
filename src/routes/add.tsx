@@ -637,6 +637,7 @@ function BookPreview({
         published_year: payload.published_year ?? null,
         status: payload.status ?? "to_read",
         notes: payload.notes ?? null,
+        genres: payload.genres ?? [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };

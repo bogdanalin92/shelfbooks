@@ -134,9 +134,9 @@ function BookDetail() {
             <p className="text-xs text-muted-foreground">{book.published_year}</p>
           )}
           {book.isbn && <p className="text-xs text-muted-foreground">ISBN {book.isbn}</p>}
-          {book.genres.length > 0 && (
+          {(book.genres ?? []).length > 0 && (
             <div className="flex flex-wrap gap-1 pt-1">
-              {book.genres.map((g) => (
+              {(book.genres ?? []).map((g) => (
                 <span
                   key={g}
                   className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
@@ -227,7 +227,7 @@ function EditModal({
   const [isbn, setIsbn] = useState(book.isbn ?? "");
   const [year, setYear] = useState(book.published_year?.toString() ?? "");
   const [coverUrl, setCoverUrl] = useState(book.cover_url ?? "");
-  const [genres, setGenres] = useState(book.genres.join(", "));
+  const [genres, setGenres] = useState((book.genres ?? []).join(", "));
   const [status, setStatus] = useState<Status>(book.status);
   const [notes, setNotes] = useState(book.notes ?? "");
   const [saving, setSaving] = useState(false);
@@ -238,7 +238,7 @@ function EditModal({
     setIsbn(book.isbn ?? "");
     setYear(book.published_year?.toString() ?? "");
     setCoverUrl(book.cover_url ?? "");
-    setGenres(book.genres.join(", "));
+    setGenres((book.genres ?? []).join(", "));
     setStatus(book.status);
     setNotes(book.notes ?? "");
   }, [book]);
