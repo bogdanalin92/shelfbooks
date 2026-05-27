@@ -99,6 +99,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
   // Inject runtime env vars so the browser-side Supabase client can read them
   // without needing VITE_* build args baked into the image.
   const envScript = `window.__ENV__=${JSON.stringify({
@@ -106,6 +108,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
     SUPABASE_PUBLISHABLE_KEY:
       process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
   })};`;
+
+  // TanStack Start's <Scripts /> should inject the entry <script type="module">
+  // but in some production builds it doesn't. Read the entry directly from the
+  // SSR manifest and inject it ourselves as a reliable fallback.
+  const rootAssets: Array<{ tag: string; attrs?: Record<string, unknown>; children?: string }> =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (router as any).ssr?.manifest?.routes?.["__root__"]?.assets ?? [];
+  const entryScript = rootAssets.find(
+    (a) => a.tag === "script" && (a.attrs as { type?: string } | undefined)?.type === "module",
+  );
 
   return (
     <html lang="en">
@@ -116,6 +128,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <body>
         {children}
         <Scripts />
+        {entryScript?.children != null && (
+          <script type="module" async dangerouslySetInnerHTML={{ __html: entryScript.children }} />
+        )}
       </body>
     </html>
   );
