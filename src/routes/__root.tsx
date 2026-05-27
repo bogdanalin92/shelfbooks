@@ -102,8 +102,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
   // Inject runtime env vars so the browser-side Supabase client can read them
   // without needing VITE_* build args baked into the image.
   const envScript = `window.__ENV__=${JSON.stringify({
-    SUPABASE_URL: process.env.SUPABASE_URL ?? "",
-    SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY ?? "",
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "",
+    SUPABASE_PUBLISHABLE_KEY:
+      process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "",
   })};`;
 
   return (
