@@ -1,4 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,10 +24,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { BookOpen, ChevronDown, Plus, Search, X } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-
-export const Route = createFileRoute("/")({
-  component: Index,
-});
 
 type Book = Tables<"books">;
 type SortKey = "date_desc" | "date_asc" | "title_asc" | "author_asc";
@@ -74,14 +73,6 @@ function sortBooks(books: Book[], sort: SortKey): Book[] {
   });
 }
 
-function Index() {
-  return (
-    <AppShell>
-      <Library />
-    </AppShell>
-  );
-}
-
 function LibrarySearch({
   books,
   open,
@@ -92,7 +83,7 @@ function LibrarySearch({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -109,7 +100,7 @@ function LibrarySearch({
   const handleSelect = (id: string) => {
     onClose();
     setQuery("");
-    navigate({ to: "/book/$id", params: { id } });
+    router.push(`/book/${id}`);
   };
 
   return (
@@ -137,7 +128,7 @@ function LibrarySearch({
         <div className="max-h-96 overflow-y-auto divide-y">
           {query.trim() && results.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No books match "<strong>{query}</strong>"
+              No books match &quot;<strong>{query}</strong>&quot;
             </p>
           ) : (
             results.map((b) => (
@@ -391,7 +382,7 @@ function Library() {
           </p>
           {resolvedBooks.length === 0 && (
             <Button asChild>
-              <Link to="/add">
+              <Link href="/add">
                 <Plus className="h-4 w-4 mr-1" /> Add a book
               </Link>
             </Button>
@@ -401,7 +392,7 @@ function Library() {
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {filtered.map((b) => (
             <li key={b.id}>
-              <Link to="/book/$id" params={{ id: b.id }} className="block group h-full">
+              <Link href={`/book/${b.id}`} className="block group h-full">
                 <div className="h-full flex flex-col rounded-2xl bg-card shadow-sm group-hover:shadow-lg transition-shadow duration-200 overflow-hidden">
                   {/* Cover */}
                   <div className="relative overflow-hidden bg-muted">
@@ -447,5 +438,13 @@ function Library() {
         </ul>
       )}
     </div>
+  );
+}
+
+export default function IndexPage() {
+  return (
+    <AppShell>
+      <Library />
+    </AppShell>
   );
 }

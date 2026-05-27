@@ -228,7 +228,7 @@ export async function fetchGenresForBook(
   // 4. Goodreads fallback (server-side to avoid CORS)
   try {
     const { searchGoodreadsGenres } = await import("@/lib/goodreads");
-    const genres = await searchGoodreadsGenres({ data: { isbn, title, authors } });
+    const genres = await searchGoodreadsGenres({ isbn, title, authors });
     if (genres.length) return genres;
   } catch {
     // noop

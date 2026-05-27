@@ -1,4 +1,7 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { BrowserMultiFormatReader } from "@zxing/browser";
@@ -13,7 +16,6 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { lookupByIsbn, searchBooks, type BookHit } from "@/lib/openlibrary";
-import { fetchGoodreadsBook, lookupGoodreadsByIsbn } from "@/lib/goodreads";
 import { logError } from "@/lib/logger";
 import { isValidCoverUrl } from "@/lib/utils";
 import { toast } from "sonner";
@@ -23,13 +25,32 @@ import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 type Book = Tables<"books">;
 type BookInsert = TablesInsert<"books">;
 
-export const Route = createFileRoute("/add")({
-  component: () => (
+async function lookupGoodreadsByIsbnApi(isbn: string): Promise<BookHit | null> {
+  const res = await fetch(`/api/goodreads/isbn?isbn=${encodeURIComponent(isbn)}`);
+  if (!res.ok) return null;
+  return res.json() as Promise<BookHit | null>;
+}
+
+async function fetchGoodreadsBookApi(url: string): Promise<BookHit> {
+  const res = await fetch("/api/goodreads/book", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error((err as { error?: string }).error ?? `Goodreads returned ${res.status}`);
+  }
+  return res.json() as Promise<BookHit>;
+}
+
+export default function AddPage() {
+  return (
     <AppShell>
       <AddBook />
     </AppShell>
-  ),
-});
+  );
+}
 
 function AddBook() {
   return (
@@ -141,7 +162,7 @@ function ScanTab() {
               setHit(book);
             } else {
               setLoadingStage("goodreads");
-              const goodreadsBook = await lookupGoodreadsByIsbn({ data: text });
+              const goodreadsBook = await lookupGoodreadsByIsbnApi(text);
               if (goodreadsBook) {
                 setHit(goodreadsBook);
               } else {
@@ -316,7 +337,7 @@ function SearchTab() {
           {searched && results.length === 0 && !busy && (
             <div className="text-center space-y-3 py-6">
               <p className="text-sm text-muted-foreground">
-                No results found for "<strong>{q}</strong>".
+                No results found for &quot;<strong>{q}</strong>&quot;.
               </p>
               <Button variant="outline" onClick={() => setAddingManually(true)}>
                 Add manually
@@ -356,7 +377,7 @@ function SearchTab() {
           {searched && results.length > 0 && (
             <div className="text-center pt-2">
               <Button variant="ghost" size="sm" onClick={() => setAddingManually(true)}>
-                Not what you're looking for? Add manually
+                Not what you&apos;re looking for? Add manually
               </Button>
             </div>
           )}
@@ -379,7 +400,7 @@ function GoodreadsTab() {
     setError(null);
     setHit(null);
     try {
-      const book = await fetchGoodreadsBook({ data: url.trim() });
+      const book = await fetchGoodreadsBookApi(url.trim());
       setHit(book);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -597,9 +618,8 @@ function BookPreview({
   redirectAfterSave?: boolean;
 }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
-  // undefined = still checking, null = not in library, string = existing book id
   const [existingId, setExistingId] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
@@ -654,7 +674,7 @@ function BookPreview({
     onSuccess: () => {
       toast.success("Added to your library");
       onSaved();
-      if (redirectAfterSave) navigate({ to: "/" });
+      if (redirectAfterSave) router.push("/");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["books", user?.id] });
@@ -695,9 +715,7 @@ function BookPreview({
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">Already in your library</p>
               <Button asChild size="sm" variant="outline">
-                <Link to="/book/$id" params={{ id: existingId }}>
-                  View
-                </Link>
+                <Link href={`/book/${existingId}`}>View</Link>
               </Button>
             </div>
           )}

@@ -1,4 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+"use client";
+
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -39,21 +41,35 @@ import { fetchGenresForBook } from "@/lib/openlibrary";
 import { logError } from "@/lib/logger";
 import { isValidCoverUrl } from "@/lib/utils";
 
-export const Route = createFileRoute("/book/$id")({
-  component: () => (
-    <AppShell>
-      <BookDetail />
-    </AppShell>
-  ),
-});
-
 type Book = Tables<"books">;
 type Status = Book["status"];
 
-function BookDetail() {
-  const { id } = Route.useParams();
+async function searchGoodreadsGenresApi(payload: {
+  isbn: string | null;
+  title: string;
+  authors: string[];
+}): Promise<string[]> {
+  const res = await fetch("/api/goodreads/genres", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return [];
+  return res.json() as Promise<string[]>;
+}
+
+export default function BookPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <AppShell>
+      <BookDetail params={params} />
+    </AppShell>
+  );
+}
+
+function BookDetail({ params }: { params: Promise<{ id: string }> }) {
+  const [id, setId] = useState<string | null>(null);
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [book, setBook] = useState<Book | null | undefined>(undefined);
   const [fetchError, setFetchError] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -63,6 +79,11 @@ function BookDetail() {
   const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    params.then((p) => setId(p.id));
+  }, [params]);
+
+  useEffect(() => {
+    if (!id) return;
     let cancelled = false;
     (async () => {
       const { data, error } = await supabase.from("books").select("*").eq("id", id).maybeSingle();
@@ -79,24 +100,31 @@ function BookDetail() {
     };
   }, [id]);
 
-  if (fetchError)
+  if (book === undefined) {
     return (
-      <p className="text-center text-destructive py-12">Failed to load book. Please refresh.</p>
+      <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
     );
-  if (book === undefined)
-    return <p className="text-center text-muted-foreground py-12">Loading…</p>;
-  if (!book) return <p className="text-center text-muted-foreground py-12">Book not found.</p>;
+  }
+
+  if (book === null || fetchError) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <p className="text-muted-foreground">Book not found.</p>
+      </div>
+    );
+  }
 
   const updateStatus = async (status: Status) => {
-    if (!user) return;
     const { error } = await supabase
       .from("books")
       .update({ status })
       .eq("id", book.id)
-      .eq("user_id", user.id);
+      .eq("user_id", book.user_id);
     if (error) {
       logError("book.updateStatus", error.message, error);
-      return toast.error("Couldn't update the book. Please try again.");
+      return toast.error("Couldn't update status. Please try again.");
     }
     setBook({ ...book, status });
     toast.success("Updated");
@@ -104,7 +132,15 @@ function BookDetail() {
 
   const fetchGenres = async () => {
     setFetchingGenres(true);
-    const genres = await fetchGenresForBook(book.isbn, book.title, book.authors);
+    // Try OpenLibrary first, then Goodreads
+    let genres = await fetchGenresForBook(book.isbn, book.title, book.authors);
+    if (!genres.length) {
+      genres = await searchGoodreadsGenresApi({
+        isbn: book.isbn,
+        title: book.title,
+        authors: book.authors,
+      });
+    }
     setFetchingGenres(false);
     setSuggestedGenres(genres);
     setSelectedGenres(new Set(genres));
@@ -149,13 +185,13 @@ function BookDetail() {
       return toast.error("Couldn't remove the book. Please try again.");
     }
     toast.success("Removed");
-    navigate({ to: "/" });
+    router.push("/");
   };
 
   return (
     <div className="space-y-6">
       {/* Back */}
-      <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/" })}>
+      <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Back
       </Button>
 
@@ -339,7 +375,8 @@ function BookDetail() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove from library?</AlertDialogTitle>
             <AlertDialogDescription>
-              "{book.title}" will be permanently removed from your library. This cannot be undone.
+              &quot;{book.title}&quot; will be permanently removed from your library. This cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -596,7 +633,7 @@ function EditModal({
                           addGenre(genreInput);
                         }}
                       >
-                        Add "{genreInput.trim()}"
+                        Add &quot;{genreInput.trim()}&quot;
                       </button>
                     )}
                 </div>

@@ -16,7 +16,7 @@ export async function logEvent(level: Level, source: string, message: string, co
       context: context ? JSON.parse(JSON.stringify(context)) : null,
     });
   } catch {
-    if (import.meta.env.DEV) {
+    if (process.env.NODE_ENV === "development") {
       console.error(`[logger] ${source}:`, message, context);
     }
   }

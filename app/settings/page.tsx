@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+"use client";
+
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,14 +23,6 @@ import {
 import { toast } from "sonner";
 import { Pencil, Trash2, Check, X, Tag, User } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
-
-export const Route = createFileRoute("/settings")({
-  component: () => (
-    <AppShell>
-      <SettingsPage />
-    </AppShell>
-  ),
-});
 
 type Book = Tables<"books">;
 
@@ -270,7 +263,7 @@ function SettingsPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{deleteTarget}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete &quot;{deleteTarget}&quot;?</AlertDialogTitle>
             <AlertDialogDescription>
               This will remove the genre from{" "}
               <strong>{deleteTarget ? (genreMap.get(deleteTarget) ?? 0) : 0}</strong> book
@@ -289,5 +282,13 @@ function SettingsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function SettingsRoute() {
+  return (
+    <AppShell>
+      <SettingsPage />
+    </AppShell>
   );
 }

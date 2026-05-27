@@ -1,5 +1,7 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+"use client";
+
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -10,21 +12,17 @@ import { toast } from "sonner";
 import { BookOpen } from "lucide-react";
 import { logError } from "@/lib/logger";
 
-export const Route = createFileRoute("/login")({
-  component: LoginPage,
-});
-
-function LoginPage() {
+export default function LoginPage() {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) navigate({ to: "/" });
-  }, [user, loading, navigate]);
+    if (!loading && user) router.push("/");
+  }, [user, loading, router]);
 
   const handleEmail = async (e: React.FormEvent) => {
     e.preventDefault();

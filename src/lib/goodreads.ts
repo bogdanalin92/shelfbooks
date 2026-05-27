@@ -1,4 +1,3 @@
-import { createServerFn } from "@tanstack/react-start";
 import type { BookHit } from "./openlibrary";
 
 function extractMeta(html: string, property: string): string | null {
@@ -159,90 +158,75 @@ function parseGoodreadsHtml(html: string): BookHit {
   };
 }
 
-export const fetchGoodreadsBook = createServerFn({ method: "GET" })
-  .inputValidator((url: unknown) => {
-    if (typeof url !== "string") throw new Error("Please provide a valid Goodreads book URL");
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw new Error("Please provide a valid Goodreads book URL");
-    }
-    if (parsed.protocol !== "https:" || !parsed.hostname.endsWith("goodreads.com")) {
-      throw new Error("Please provide a valid Goodreads book URL");
-    }
-    return url;
-  })
-  .handler(async ({ data: url }): Promise<BookHit> => {
-    const res = await fetch(url, { headers: GOODREADS_HEADERS, redirect: "follow" });
-    if (!res.ok) throw new Error(`Goodreads returned ${res.status}`);
+export async function fetchGoodreadsBookByUrl(url: string): Promise<BookHit> {
+  const res = await fetch(url, { headers: GOODREADS_HEADERS, redirect: "follow" });
+  if (!res.ok) throw new Error(`Goodreads returned ${res.status}`);
+  return parseGoodreadsHtml(await res.text());
+}
+
+export async function lookupGoodreadsByIsbn(isbn: string): Promise<BookHit | null> {
+  const clean = isbn.replace(/[^0-9Xx]/g, "");
+  if (!clean) return null;
+  try {
+    const res = await fetch(`https://www.goodreads.com/book/isbn/${clean}`, {
+      headers: GOODREADS_HEADERS,
+      redirect: "follow",
+    });
+    if (!res.ok) return null;
     return parseGoodreadsHtml(await res.text());
-  });
+  } catch {
+    return null;
+  }
+}
 
-export const lookupGoodreadsByIsbn = createServerFn({ method: "GET" })
-  .inputValidator((isbn: unknown) => {
-    if (typeof isbn !== "string") throw new Error("Invalid ISBN");
-    return isbn.replace(/[^0-9Xx]/g, "");
-  })
-  .handler(async ({ data: isbn }): Promise<BookHit | null> => {
-    try {
-      const res = await fetch(`https://www.goodreads.com/book/isbn/${isbn}`, {
-        headers: GOODREADS_HEADERS,
-        redirect: "follow",
-      });
-      if (!res.ok) return null;
-      return parseGoodreadsHtml(await res.text());
-    } catch {
-      return null;
-    }
-  });
-
-export const searchGoodreadsGenres = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => {
-    const i = input as { isbn: string | null; title: string; authors: string[] };
-    return i;
-  })
-  .handler(async ({ data }): Promise<string[]> => {
-    const { isbn, title, authors } = data;
-    try {
-      // 1. Try ISBN lookup
-      if (isbn) {
-        const clean = isbn.replace(/[^0-9Xx]/g, "");
-        if (clean) {
-          const res = await fetch(`https://www.goodreads.com/book/isbn/${clean}`, {
-            headers: GOODREADS_HEADERS,
-            redirect: "follow",
-          });
-          if (res.ok) {
-            const hit = parseGoodreadsHtml(await res.text());
-            if (hit.genres.length) return hit.genres;
-          }
-        }
-      }
-      // 2. Search by title + first author, then fall back to author alone
-      const queries = [[title, authors[0]].filter(Boolean).join(" "), authors[0] ?? ""].filter(
-        Boolean,
-      );
-      for (const q of queries) {
-        const searchRes = await fetch(
-          `https://www.goodreads.com/search?q=${encodeURIComponent(q)}&search_type=books`,
-          { headers: GOODREADS_HEADERS, redirect: "follow" },
-        );
-        if (!searchRes.ok) continue;
-        const searchHtml = await searchRes.text();
-        // Extract first book URL from search results
-        const m = searchHtml.match(/href="(\/book\/show\/[^"?#]+)"/);
-        if (!m) continue;
-        const bookRes = await fetch(`https://www.goodreads.com${m[1]}`, {
+export async function searchGoodreadsGenres({
+  isbn,
+  title,
+  authors,
+}: {
+  isbn: string | null;
+  title: string;
+  authors: string[];
+}): Promise<string[]> {
+  try {
+    // 1. Try ISBN lookup
+    if (isbn) {
+      const clean = isbn.replace(/[^0-9Xx]/g, "");
+      if (clean) {
+        const res = await fetch(`https://www.goodreads.com/book/isbn/${clean}`, {
           headers: GOODREADS_HEADERS,
           redirect: "follow",
         });
-        if (!bookRes.ok) continue;
-        const hit = parseGoodreadsHtml(await bookRes.text());
-        if (hit.genres.length) return hit.genres;
+        if (res.ok) {
+          const hit = parseGoodreadsHtml(await res.text());
+          if (hit.genres.length) return hit.genres;
+        }
       }
-    } catch {
-      // network failure — silently return empty
     }
-    return [];
-  });
+    // 2. Search by title + first author, then fall back to author alone
+    const queries = [[title, authors[0]].filter(Boolean).join(" "), authors[0] ?? ""].filter(
+      Boolean,
+    );
+    for (const q of queries) {
+      const searchRes = await fetch(
+        `https://www.goodreads.com/search?q=${encodeURIComponent(q)}&search_type=books`,
+        { headers: GOODREADS_HEADERS, redirect: "follow" },
+      );
+      if (!searchRes.ok) continue;
+      const searchHtml = await searchRes.text();
+      // Extract first book URL from search results
+      const m = searchHtml.match(/href="(\/book\/show\/[^"?#]+)"/);
+      if (!m) continue;
+      const bookRes = await fetch(`https://www.goodreads.com${m[1]}`, {
+        headers: GOODREADS_HEADERS,
+        redirect: "follow",
+      });
+      if (!bookRes.ok) continue;
+      const hit = parseGoodreadsHtml(await bookRes.text());
+      if (hit.genres.length) return hit.genres;
+    }
+  } catch {
+    // network failure — silently return empty
+  }
+  return [];
+}

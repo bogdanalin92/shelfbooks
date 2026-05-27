@@ -1,4 +1,7 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+"use client";
+
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,12 +10,12 @@ import { BookOpen, LogOut, Plus, Settings } from "lucide-react";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  const navigate = useNavigate();
-  const path = useRouterState({ select: (s) => s.location.pathname });
+  const router = useRouter();
+  const path = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
-  }, [user, loading, navigate]);
+    if (!loading && !user) router.push("/login");
+  }, [user, loading, router]);
 
   if (loading || !user) {
     return (
@@ -29,20 +32,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
+          <Link href="/" className="flex items-center gap-2 font-semibold">
             <BookOpen className="h-5 w-5 text-primary" />
             <span>ShelfBooks</span>
           </Link>
           <div className="flex items-center gap-1">
             {path !== "/add" && (
               <Button asChild size="sm">
-                <Link to="/add">
+                <Link href="/add">
                   <Plus className="h-4 w-4 mr-1" /> Add
                 </Link>
               </Button>
             )}
             <Button asChild size="icon" variant="ghost" aria-label="Settings">
-              <Link to="/settings">
+              <Link href="/settings">
                 <Settings className="h-4 w-4" />
               </Link>
             </Button>

@@ -51,7 +51,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets (JS, CSS, images, fonts) — cache-first for performance.
+  // Static assets (JS, CSS, images, fonts).
+  // Use network-first for scripts so code changes are always reflected;
+  // use cache-first for immutable assets like images and fonts.
   const cacheable =
     request.destination === "script" ||
     request.destination === "style" ||
@@ -59,12 +61,28 @@ self.addEventListener("fetch", (event) => {
     request.destination === "font";
 
   if (cacheable) {
-    event.respondWith(cacheFirst(request, CACHE_NAME));
+    if (request.destination === "script" || request.destination === "style") {
+      event.respondWith(networkFirst(request, CACHE_NAME));
+    } else {
+      event.respondWith(cacheFirst(request, CACHE_NAME));
+    }
     return;
   }
 });
 
 // ─── Strategies ─────────────────────────────────────────────────────────────
+
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await fetch(request);
+    if (response.ok) cache.put(request, response.clone());
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    return cached ?? new Response("", { status: 503, statusText: "Service Unavailable" });
+  }
+}
 
 async function cacheFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
