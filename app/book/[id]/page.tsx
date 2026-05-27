@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { AppShell } from "@/components/app-shell";
@@ -70,6 +71,7 @@ function BookDetail({ params }: { params: Promise<{ id: string }> }) {
   const [id, setId] = useState<string | null>(null);
   const { user } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [book, setBook] = useState<Book | null | undefined>(undefined);
   const [fetchError, setFetchError] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -127,6 +129,7 @@ function BookDetail({ params }: { params: Promise<{ id: string }> }) {
       return toast.error("Couldn't update status. Please try again.");
     }
     setBook({ ...book, status });
+    queryClient.invalidateQueries({ queryKey: ["books", user?.id] });
     toast.success("Updated");
   };
 
