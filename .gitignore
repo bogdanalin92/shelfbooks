@@ -31,3 +31,5 @@ tsconfig.tsbuildinfo
 *.sln
 *.sw?
 */.temp
+
+certificates

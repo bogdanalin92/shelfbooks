@@ -15,11 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { lookupByIsbn, searchBooks, type BookHit } from "@/lib/openlibrary";
+import { lookupByIsbn, searchBooks, fetchGenresForBook, type BookHit } from "@/lib/openlibrary";
 import { logError } from "@/lib/logger";
 import { isValidCoverUrl } from "@/lib/utils";
 import { toast } from "sonner";
-import { Camera, CameraOff, Loader2, Search, ScanLine, BookMarked } from "lucide-react";
+import { Camera, CameraOff, Loader2, Search, ScanLine, BookMarked, Sparkles } from "lucide-react";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 type Book = Tables<"books">;
@@ -29,6 +29,20 @@ async function lookupGoodreadsByIsbnApi(isbn: string): Promise<BookHit | null> {
   const res = await fetch(`/api/goodreads/isbn?isbn=${encodeURIComponent(isbn)}`);
   if (!res.ok) return null;
   return res.json() as Promise<BookHit | null>;
+}
+
+async function searchGoodreadsGenresApi(payload: {
+  isbn: string | null;
+  title: string;
+  authors: string[];
+}): Promise<string[]> {
+  const res = await fetch("/api/goodreads/genres", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return [];
+  return res.json() as Promise<string[]>;
 }
 
 async function fetchGoodreadsBookApi(url: string): Promise<BookHit> {
@@ -621,6 +635,38 @@ function BookPreview({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [existingId, setExistingId] = useState<string | null | undefined>(undefined);
+  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(
+    new Set(hit.genres ?? []),
+  );
+  const [suggestedGenres, setSuggestedGenres] = useState<string[] | null>(
+    (hit.genres ?? []).length > 0 ? (hit.genres ?? []) : null,
+  );
+  const [fetchingGenres, setFetchingGenres] = useState(false);
+
+  const fetchGenres = async () => {
+    setFetchingGenres(true);
+    let genres = await fetchGenresForBook(hit.isbn ?? null, hit.title, hit.authors);
+    if (!genres.length) {
+      genres = await searchGoodreadsGenresApi({
+        isbn: hit.isbn ?? null,
+        title: hit.title,
+        authors: hit.authors,
+      });
+    }
+    setFetchingGenres(false);
+    setSuggestedGenres(genres);
+    setSelectedGenres(new Set(genres));
+    if (genres.length === 0) toast.info("No genres found for this book.");
+  };
+
+  const toggleGenre = (g: string) => {
+    setSelectedGenres((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -691,41 +737,110 @@ function BookPreview({
       authors: hit.authors,
       cover_url: isValidCoverUrl(rawCover) ? rawCover || null : null,
       published_year: hit.published_year ?? null,
+      genres: Array.from(selectedGenres),
     };
     mutation.mutate(payload);
   };
 
   return (
-    <Card className="p-3 flex gap-3">
-      <div className="h-28 w-20 shrink-0 overflow-hidden rounded bg-muted">
-        {hit.cover_url && <img src={hit.cover_url} alt="" className="h-full w-full object-cover" />}
-      </div>
-      <div className="flex-1 min-w-0 flex flex-col">
-        <p className="font-semibold line-clamp-2">{hit.title}</p>
-        <p className="text-sm text-muted-foreground line-clamp-1">{hit.authors.join(", ")}</p>
-        {hit.published_year && (
-          <p className="text-xs text-muted-foreground">{hit.published_year}</p>
-        )}
-        {hit.isbn && <p className="text-xs text-muted-foreground">ISBN {hit.isbn}</p>}
-        <div className="mt-auto">
-          {existingId === undefined && (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+    <Card className="p-3 space-y-3">
+      <div className="flex gap-3">
+        <div className="h-28 w-20 shrink-0 overflow-hidden rounded bg-muted">
+          {hit.cover_url && (
+            <img src={hit.cover_url} alt="" className="h-full w-full object-cover" />
           )}
-          {existingId !== null && existingId !== undefined && (
-            <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground">Already in your library</p>
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/book/${existingId}`}>View</Link>
+        </div>
+        <div className="flex-1 min-w-0 flex flex-col">
+          <p className="font-semibold line-clamp-2">{hit.title}</p>
+          <p className="text-sm text-muted-foreground line-clamp-1">{hit.authors.join(", ")}</p>
+          {hit.published_year && (
+            <p className="text-xs text-muted-foreground">{hit.published_year}</p>
+          )}
+          {hit.isbn && <p className="text-xs text-muted-foreground">ISBN {hit.isbn}</p>}
+          <div className="mt-auto">
+            {existingId === undefined && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+            {existingId !== null && existingId !== undefined && (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">Already in your library</p>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/book/${existingId}`}>View</Link>
+                </Button>
+              </div>
+            )}
+            {existingId === null && (
+              <Button onClick={save} disabled={mutation.isPending} size="sm">
+                {mutation.isPending ? "Saving…" : "Add to library"}
               </Button>
-            </div>
-          )}
-          {existingId === null && (
-            <Button onClick={save} disabled={mutation.isPending} size="sm">
-              {mutation.isPending ? "Saving…" : "Add to library"}
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Genres — only shown when the book isn't already in the library */}
+      {existingId === null && (
+        <div className="border-t pt-2">
+          {suggestedGenres !== null ? (
+            suggestedGenres.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Select genres to add:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {suggestedGenres.map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => toggleGenre(g)}
+                      className={`inline-block rounded-full px-2.5 py-1 text-xs transition-colors cursor-pointer ${
+                        selectedGenres.has(g)
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs"
+                  onClick={() => setSuggestedGenres(null)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">No genres found.</p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs"
+                  onClick={() => setSuggestedGenres(null)}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            )
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs text-muted-foreground"
+              onClick={fetchGenres}
+              disabled={fetchingGenres}
+            >
+              {fetchingGenres ? (
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3 mr-1" />
+              )}
+              Suggest genres
             </Button>
           )}
         </div>
-      </div>
+      )}
     </Card>
   );
 }
