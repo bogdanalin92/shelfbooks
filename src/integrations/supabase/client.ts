@@ -2,14 +2,26 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
+declare global {
+  interface Window {
+    __ENV__?: { SUPABASE_URL?: string; SUPABASE_PUBLISHABLE_KEY?: string };
+  }
+}
+
 function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
+  // Priority:
+  //  1. VITE_* build-time vars (baked in by Vite when build args are provided)
+  //  2. window.__ENV__  – injected by the SSR server from process.env at request time
+  //  3. process.env.*   – server-side (SSR) direct access
   const isServer = typeof window === "undefined";
+  const runtimeEnv = isServer ? undefined : window.__ENV__;
   const SUPABASE_URL =
-    import.meta.env.VITE_SUPABASE_URL || (isServer ? process.env.SUPABASE_URL : undefined);
+    import.meta.env.VITE_SUPABASE_URL ||
+    runtimeEnv?.SUPABASE_URL ||
+    (isServer ? process.env.SUPABASE_URL : undefined);
   const SUPABASE_PUBLISHABLE_KEY =
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    runtimeEnv?.SUPABASE_PUBLISHABLE_KEY ||
     (isServer ? process.env.SUPABASE_PUBLISHABLE_KEY : undefined);
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {

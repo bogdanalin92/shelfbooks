@@ -99,10 +99,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {
+  // Inject runtime env vars so the browser-side Supabase client can read them
+  // without needing VITE_* build args baked into the image.
+  const envScript = `window.__ENV__=${JSON.stringify({
+    SUPABASE_URL: process.env.SUPABASE_URL ?? "",
+    SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY ?? "",
+  })};`;
+
   return (
     <html lang="en">
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: envScript }} />
       </head>
       <body>
         {children}
