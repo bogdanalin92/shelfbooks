@@ -7,8 +7,7 @@ function createSupabaseClient() {
   // Fall back to process.env for SSR (server-side rendering)
   const isServer = typeof window === "undefined";
   const SUPABASE_URL =
-    import.meta.env.VITE_SUPABASE_URL ||
-    (isServer ? process.env.SUPABASE_URL : undefined);
+    import.meta.env.VITE_SUPABASE_URL || (isServer ? process.env.SUPABASE_URL : undefined);
   const SUPABASE_PUBLISHABLE_KEY =
     import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
     (isServer ? process.env.SUPABASE_PUBLISHABLE_KEY : undefined);
