@@ -15,15 +15,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
+    let sub: ReturnType<typeof supabase.auth.onAuthStateChange>["data"] | undefined;
+
+    try {
+      ({ data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+        setSession(s);
+        setLoading(false);
+      }));
+    } catch (err) {
+      console.error("[Auth] onAuthStateChange failed:", err);
       setLoading(false);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+    }
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("[Auth] getSession failed:", err);
+        setLoading(false);
+      });
+
+    return () => sub?.subscription.unsubscribe();
   }, []);
 
   return (
