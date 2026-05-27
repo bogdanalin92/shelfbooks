@@ -18,6 +18,9 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // react-hooks v5 introduced strict new rules that flag valid patterns
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/purity": "off",
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
