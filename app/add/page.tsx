@@ -635,9 +635,7 @@ function BookPreview({
   const router = useRouter();
   const queryClient = useQueryClient();
   const [existingId, setExistingId] = useState<string | null | undefined>(undefined);
-  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(
-    new Set(hit.genres ?? []),
-  );
+  const [selectedGenres, setSelectedGenres] = useState<Set<string>>(new Set(hit.genres ?? []));
   const [suggestedGenres, setSuggestedGenres] = useState<string[] | null>(
     (hit.genres ?? []).length > 0 ? (hit.genres ?? []) : null,
   );
