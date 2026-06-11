@@ -40,6 +40,11 @@ const coverByIsbn = (isbn: string, size: "S" | "M" | "L" = "M") =>
 async function lookupGoogleBooks(isbn: string): Promise<BookHit | null> {
   try {
     const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+    // If rate-limited, return null and fall back to other methods
+    if (r.status === 429) {
+      console.warn("Google Books API rate limited, falling back to Open Library");
+      return null;
+    }
     if (!r.ok) return null;
     const j: GoogleBooksResponse = await r.json();
     const v = j.items?.[0]?.volumeInfo;
@@ -119,6 +124,11 @@ async function searchGoogleBooks(q: string, limit = 20): Promise<BookHit[]> {
     const r = await fetch(
       `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=${limit}&printType=books`,
     );
+    // If rate-limited (429), skip Google Books but don't error
+    if (r.status === 429) {
+      console.warn("Google Books API rate limited, using Open Library results only");
+      return [];
+    }
     if (!r.ok) return [];
     const j: GoogleBooksResponse = await r.json();
     return (j.items ?? []).map((item: GoogleBooksItem) => {
@@ -196,7 +206,7 @@ export async function searchBooks(q: string, limit = 20): Promise<BookHit[]> {
 
 /**
  * Fetches genre suggestions for an existing book.
- * Tries Open Library / Google Books first, then Goodreads (server-side).
+ * Tries Open Library / Google Books first.
  * Returns an empty array on failure.
  */
 export async function fetchGenresForBook(
@@ -221,15 +231,6 @@ export async function fetchGenresForBook(
       const authorHit = byAuthor.find((r) => r.genres.length > 0);
       if (authorHit) return authorHit.genres;
     }
-  } catch {
-    // noop
-  }
-
-  // 4. Goodreads fallback (server-side to avoid CORS)
-  try {
-    const { searchGoodreadsGenres } = await import("@/lib/goodreads");
-    const genres = await searchGoodreadsGenres({ isbn, title, authors });
-    if (genres.length) return genres;
   } catch {
     // noop
   }

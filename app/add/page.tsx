@@ -19,44 +19,11 @@ import { lookupByIsbn, searchBooks, fetchGenresForBook, type BookHit } from "@/l
 import { logError } from "@/lib/logger";
 import { isValidCoverUrl } from "@/lib/utils";
 import { toast } from "sonner";
-import { Camera, CameraOff, Loader2, Search, ScanLine, BookMarked, Sparkles } from "lucide-react";
+import { Camera, CameraOff, Loader2, Search, ScanLine, Sparkles } from "lucide-react";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 type Book = Tables<"books">;
 type BookInsert = TablesInsert<"books">;
-
-async function lookupGoodreadsByIsbnApi(isbn: string): Promise<BookHit | null> {
-  const res = await fetch(`/api/goodreads/isbn?isbn=${encodeURIComponent(isbn)}`);
-  if (!res.ok) return null;
-  return res.json() as Promise<BookHit | null>;
-}
-
-async function searchGoodreadsGenresApi(payload: {
-  isbn: string | null;
-  title: string;
-  authors: string[];
-}): Promise<string[]> {
-  const res = await fetch("/api/goodreads/genres", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) return [];
-  return res.json() as Promise<string[]>;
-}
-
-async function fetchGoodreadsBookApi(url: string): Promise<BookHit> {
-  const res = await fetch("/api/goodreads/book", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error((err as { error?: string }).error ?? `Goodreads returned ${res.status}`);
-  }
-  return res.json() as Promise<BookHit>;
-}
 
 export default function AddPage() {
   return (
@@ -69,7 +36,7 @@ export default function AddPage() {
 function AddBook() {
   return (
     <Tabs defaultValue="scan" className="space-y-4">
-      <TabsList className="grid w-full grid-cols-4">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="scan">
           <ScanLine className="h-4 w-4 mr-1" />
           Scan
@@ -78,10 +45,7 @@ function AddBook() {
           <Search className="h-4 w-4 mr-1" />
           Search
         </TabsTrigger>
-        <TabsTrigger value="goodreads">
-          <BookMarked className="h-4 w-4 mr-1" />
-          Goodreads
-        </TabsTrigger>
+
         <TabsTrigger value="manual">ISBN</TabsTrigger>
       </TabsList>
       <TabsContent value="scan">
@@ -90,9 +54,7 @@ function AddBook() {
       <TabsContent value="search">
         <SearchTab />
       </TabsContent>
-      <TabsContent value="goodreads">
-        <GoodreadsTab />
-      </TabsContent>
+
       <TabsContent value="manual">
         <ManualTab />
       </TabsContent>
@@ -107,7 +69,7 @@ function ScanTab() {
   const [error, setError] = useState<string | null>(null);
   const [hit, setHit] = useState<BookHit | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState<"isbn" | "goodreads">("isbn");
+  const [loadingStage, setLoadingStage] = useState<"isbn">("isbn");
   const [scannedIsbn, setScannedIsbn] = useState<string | null>(null);
   const [notFoundIsbn, setNotFoundIsbn] = useState<string | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
@@ -170,18 +132,12 @@ function ScanTab() {
                 return;
               }
             }
-            // 2. Try OpenLibrary then Goodreads
+            // 2. Try OpenLibrary
             const book = await lookupByIsbn(text);
             if (book) {
               setHit(book);
             } else {
-              setLoadingStage("goodreads");
-              const goodreadsBook = await lookupGoodreadsByIsbnApi(text);
-              if (goodreadsBook) {
-                setHit(goodreadsBook);
-              } else {
-                setNotFoundIsbn(text);
-              }
+              setNotFoundIsbn(text);
             }
           } finally {
             setLoading(false);
@@ -231,14 +187,8 @@ function ScanTab() {
       {loading && (
         <p className="text-center text-sm text-muted-foreground">
           <Loader2 className="inline h-4 w-4 animate-spin mr-1" />
-          {loadingStage === "isbn" ? (
-            <>
-              Searching for the{" "}
-              <span className="font-mono font-medium text-foreground">{scannedIsbn}</span> ISBN…
-            </>
-          ) : (
-            <>Not found in Open Library, trying Goodreads…</>
-          )}
+          Searching for the{" "}
+          <span className="font-mono font-medium text-foreground">{scannedIsbn}</span> ISBN…
         </p>
       )}
       {error && (
@@ -396,67 +346,6 @@ function SearchTab() {
             </div>
           )}
         </>
-      )}
-    </div>
-  );
-}
-
-function GoodreadsTab() {
-  const [url, setUrl] = useState("");
-  const [hit, setHit] = useState<BookHit | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const onImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url.trim()) return;
-    setBusy(true);
-    setError(null);
-    setHit(null);
-    try {
-      const book = await fetchGoodreadsBookApi(url.trim());
-      setHit(book);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      logError("goodreads.import", message, err);
-      setError(message ?? "Could not import book. Make sure the URL is a Goodreads book page.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        Paste a Goodreads book URL to import its details automatically.
-      </p>
-      <form onSubmit={onImport} className="space-y-2">
-        <Input
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.goodreads.com/book/show/…"
-          type="url"
-        />
-        <Button type="submit" disabled={busy} className="w-full">
-          {busy ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              Importing…
-            </>
-          ) : (
-            "Import from Goodreads"
-          )}
-        </Button>
-      </form>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {hit && (
-        <BookPreview
-          hit={hit}
-          onSaved={() => {
-            setHit(null);
-            setUrl("");
-          }}
-        />
       )}
     </div>
   );
@@ -643,14 +532,7 @@ function BookPreview({
 
   const fetchGenres = async () => {
     setFetchingGenres(true);
-    let genres = await fetchGenresForBook(hit.isbn ?? null, hit.title, hit.authors);
-    if (!genres.length) {
-      genres = await searchGoodreadsGenresApi({
-        isbn: hit.isbn ?? null,
-        title: hit.title,
-        authors: hit.authors,
-      });
-    }
+    const genres = await fetchGenresForBook(hit.isbn ?? null, hit.title, hit.authors);
     setFetchingGenres(false);
     setSuggestedGenres(genres);
     setSelectedGenres(new Set(genres));

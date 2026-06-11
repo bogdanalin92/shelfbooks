@@ -45,20 +45,6 @@ import { isValidCoverUrl } from "@/lib/utils";
 type Book = Tables<"books">;
 type Status = Book["status"];
 
-async function searchGoodreadsGenresApi(payload: {
-  isbn: string | null;
-  title: string;
-  authors: string[];
-}): Promise<string[]> {
-  const res = await fetch("/api/goodreads/genres", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) return [];
-  return res.json() as Promise<string[]>;
-}
-
 export default function BookPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <AppShell>
@@ -135,15 +121,8 @@ function BookDetail({ params }: { params: Promise<{ id: string }> }) {
 
   const fetchGenres = async () => {
     setFetchingGenres(true);
-    // Try OpenLibrary first, then Goodreads
-    let genres = await fetchGenresForBook(book.isbn, book.title, book.authors);
-    if (!genres.length) {
-      genres = await searchGoodreadsGenresApi({
-        isbn: book.isbn,
-        title: book.title,
-        authors: book.authors,
-      });
-    }
+    // Try OpenLibrary for genres
+    const genres = await fetchGenresForBook(book.isbn, book.title, book.authors);
     setFetchingGenres(false);
     setSuggestedGenres(genres);
     setSelectedGenres(new Set(genres));
